@@ -341,7 +341,7 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
 end
 
 
-# Run()
+Run()
 # xs = Ind(sprand(Bool, DIM, DIM, PB),0)
 # mutate_permutation(xs)
 # children = Array{Ind}(undef, 10)
@@ -363,11 +363,11 @@ end
 #
 #
 #
-r1es = ES(SEED = p1, EpochNum = 200)
-r2es = ES(SEED = p1, EpochNum = 200)
-(r1es.dm.+r2es.dm).==1
-(r1es.dm.+r2es.dm).==2
-end
+# r1es = ES(SEED = p1, EpochNum = 200)
+# r2es = ES(SEED = p1, EpochNum = 200)
+# (r1es.dm.+r2es.dm).==1
+# (r1es.dm.+r2es.dm).==2
+# end
 #
 # a, b = crossover_plain__(r1es, r2es)
 # evaluate(a, r3_mod)
@@ -407,10 +407,10 @@ end
 # P9 = deserialize(FPFFF*"94734_models_epoch200_(16+256)")[1].dm
 # P10 = deserialize(FPFFF*"14287_models_epoch200_(16+256)")[1].dm
 #
-FPFFF = pwd()*"\\models\\"
-a,b = deserialize(FPFFF*"70710_hist_epoch200_(16+256)")
-plot(1:200, minimum(a,dims=2), yaxis =:log )
-plot!(1:200, mean(a,dims=2), yaxis =:log )
+# FPFFF = pwd()*"\\models\\"
+# a,b = deserialize(FPFFF*"70710_hist_epoch200_(16+256)")
+# plot(1:200, minimum(a,dims=2), yaxis =:log )
+# plot!(1:200, mean(a,dims=2), yaxis =:log )
 # a = (P1+P2+P3+P4+P5+P6+P7+P8+P9+P10)
 # a.==1
 # a.==2
