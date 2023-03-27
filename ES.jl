@@ -8,7 +8,8 @@ using Printf
 using Random
 using Serialization
 
-fp = "E:\\julias\\data\\RUVrNormalizedCounts.txt"
+#fp = "E:\\julias\\data\\RUVrNormalizedCounts.txt"
+fp = "/home/ywang552/research/gene_test/RUVrNormalizedCounts.txt"
 
 TIMING = 17
 DIM = 128
