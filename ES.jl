@@ -264,14 +264,14 @@ function Run(;SEED = false, EpochNum = 500, ParentSize = 16, LRStrength = 0.1, Î
         hist_book = (map(x->x.error, parents))
         printBook[counter,:] = hist_book
         nnzbook[counter] = nnz(parents[1].dm)
-        if(counter%10==0)
-            p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
-            p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
-            p2 = plot(1:counter, nnzbook[1:counter])
-            t = plot(p,p2, layout=(2,1), legend = false)
-            display(t)
-            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        end
+        # if(counter%10==0)
+        #     p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
+        #     p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
+        #     p2 = plot(1:counter, nnzbook[1:counter])
+        #     t = plot(p,p2, layout=(2,1), legend = false)
+        #     display(t)
+        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        # end
         @printf "mean is %.4f\n" mean(hist_book)
         @printf "worst is %.4f\n" maximum(hist_book)
         @printf "best is %.4f\n" minimum(hist_book)
@@ -316,13 +316,13 @@ function ES(; SEED = false, EpochNum= 2500, Î» = 1024, DATASET = r3_mod, DIM = D
         parent = total[1]
         performance_hist[counter] = parent.error
         nnz_hist[counter] = nnz(parent.dm)
-        if(counter%10==0)
-            p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
-            p2 = plot(1:counter, nnz_hist[1:counter])
-            t = plot(p,p2, layout=(2,1), legend = false)
-            display(t)
-            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        end
+        # if(counter%10==0)
+        #     p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
+        #     p2 = plot(1:counter, nnz_hist[1:counter])
+        #     t = plot(p,p2, layout=(2,1), legend = false)
+        #     display(t)
+        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        # end
         @printf "error is %.4f\n" performance_hist[counter]
         @printf "nnz is %d\n" nnz_hist[counter]
         if(counter>1)
