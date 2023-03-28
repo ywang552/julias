@@ -204,8 +204,7 @@ r3_mod = DATASET_[1:TIMING, 1:DIM]
 
 
 
-function Run(;SEED = false, EpochNum = 500, runin = -1
-    ParentSize = 16, LRStrength = 0.1, γ = 128, DATASET = r3_mod, DIM = DIM)
+function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = 16, LRStrength = 0.1, γ = 128, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
     println("starting...")
@@ -220,8 +219,8 @@ function Run(;SEED = false, EpochNum = 500, runin = -1
         evaluate(parents[i], DATASET)
     end
     ## start iteration
-    printBook = Array{Float64}(undef, EpochNum, ParentSize)
-    nnzbook = Array{Int}(undef, EpochNum)
+    printBook = Array{Float64}(undef, EpochNum, ParentSize) # record all individuals' fitness per epoch
+    nnzbook = Array{Int}(undef, EpochNum) # record number of nonzero numbers per epoch of the best individual
     ## select
     for counter in 1:EpochNum
         @printf "--------Current Epoch is %d------ \n" counter
@@ -278,13 +277,13 @@ function Run(;SEED = false, EpochNum = 500, runin = -1
         @printf "worst is %.4f\n" maximum(hist_book)
         @printf "best is %.4f\n" minimum(hist_book)
         @printf "nnz is %d\n" nnz(parents[1].dm)
-        if(counter%100==0)
-            # serialize(pwd()*"\\models\\"*string(runid)*"_hist_epoch"*string(counter)*"_("*string(ParentSize)*"+"*string(γ*2)*")",[printBook[1:counter, :],nnzbook[1:counter]] )
-            # serialize(pwd()*"\\models\\"*string(runid)*"_models_epoch"*string(counter)*"_("*string(ParentSize)*"+"*string(γ*2)*")",parents)
-        end
+    end
+    if(out_bool)
+        out_filename = joinpath(outpath, string(runid))
+        serialize(out_filename*"_hist",[printBook[1:EpochNum, :],nnzbook[1:EpochNum]] )
+        serialize(out_filename*"_models",parents)
     end
     return parents
-    # serialize(pwd()*"\\models\\"*string(runid)*"_models_epoch"*string(EpochNum)*"_("*string(ParentSize)*"+"*string(γ*2)*")",parents)
 end
 
 
@@ -343,8 +342,14 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     return parent
 end
 
+outdirid_p = string(rand(collect(1:999999)))
+outpath_p = joinpath(pwd(),"data", outdirid_p)
+mkdir(outpath_p)
+println(outpath_p)
 
-Run()
+
+Run(out_bool = true, outpath = outpath_p, EpochNum = 10, runid = 1 )
+
 # xs = Ind(sprand(Bool, DIM, DIM, PB),0)
 # mutate_permutation(xs)
 # children = Array{Ind}(undef, 10)
