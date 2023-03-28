@@ -204,10 +204,10 @@ r3_mod = DATASET_[1:TIMING, 1:DIM]
 
 
 
-function Run(;SEED = false, EpochNum = 500, ParentSize = 16, LRStrength = 0.1, γ = 128, DATASET = r3_mod, DIM = DIM)
+function Run(;SEED = false, EpochNum = 500, runin = -1
+    ParentSize = 16, LRStrength = 0.1, γ = 128, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
-    runid = rand(collect(1:99999))
     println("starting...")
     @printf "μ = %d, λ = %d\n" ParentSize γ*2
     if(SEED == false)
