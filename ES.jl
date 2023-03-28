@@ -9,8 +9,10 @@ using Random
 using Serialization
 
 #fp = "E:\\julias\\data\\RUVrNormalizedCounts.txt"
-fp = "/home/ywang552/research/gene_test/RUVrNormalizedCounts.txt"
-
+# fp = "/home/ywang552/research/gene_test/RUVrNormalizedCounts.txt"
+fp_ = pwd()
+fn = "RUVrNormalizedCounts.txt"
+fp = joinpath(fp_, fn)
 TIMING = 17
 DIM = 128
 PB = 0.004
