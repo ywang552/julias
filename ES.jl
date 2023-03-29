@@ -268,7 +268,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
     end
     if(out_bool)
         out_filename = joinpath(outpath, string(runid))
-        serialize(out_filename*"_hist",[printBook[1:EpochNum, :],nnzbook[1:EpochNum]] )
+        serialize(out_filename*"_hist",[printBook[1:EpochNum, :],nnzbook[1:EpochNum]] ) # record both printbook and nnzbook
         serialize(out_filename*"_models",parents)
     end
 end
@@ -333,6 +333,17 @@ outdirid_p = string(rand(collect(1:999999)))
 outpath_p = joinpath(pwd(),"data", outdirid_p)
 mkdir(outpath_p)
 println(outpath_p)
+
+
+open("data_ids.txt", "a") do file
+    write(file, outdirid_p*"\n")
+end
+ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p)
+
+open(joinpath(outpath_p, "description.txt"), "w") do file
+    write(file, ans)
+end
+
 ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p)
 
 open(joinpath(outpath_p, "description.txt"), "w") do file
