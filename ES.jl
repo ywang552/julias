@@ -1,8 +1,7 @@
 fp_ = pwd()
 fn = "RUVrNormalizedCounts.txt"
 fp = joinpath(fp_, fn)
-# TIMING = 17
-# DIM = 128
+
 PB = 0.004
 f = CSV.read(fp, DataFrame, delim = '\t', header = 1)
 f = f[:, 2:end]
@@ -183,15 +182,10 @@ end
 
 
 
-## hyperparameters
-# ParentSize = 10
-# LRStrength = 0.1
-# γ = 25
+
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
-# EpochNum_p = 1000
-# ParentSize_p = 16
-# γ_p = 128
+
 function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
@@ -329,7 +323,6 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     return parent
 end
 
-"making some jokes"
 
 Run()
 
