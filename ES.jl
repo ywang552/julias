@@ -329,22 +329,34 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     return parent
 end
 
+Run()
 
-outdirid_p = string(rand(collect(1:999999)))
-outpath_p = joinpath(pwd(),"data", outdirid_p)
-mkdir(outpath_p)
-println(outpath_p)
 
-open("data_ids.txt", "a") do file
-    write(file, outdirid_p*"\n")
-end
 
-ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p*2)
 
-open(joinpath(outpath_p, "description.txt"), "w") do file
-    write(file, ans)
-end
 
-for i in 1:10
-    Run(out_bool = true, outpath = outpath_p, EpochNum = EpochNum_p, runid = i )
-end 
+
+
+
+
+
+
+
+# outdirid_p = string(rand(collect(1:999999)))
+# outpath_p = joinpath(pwd(),"data", outdirid_p)
+# mkdir(outpath_p)
+# println(outpath_p)
+
+# open("data_ids.txt", "a") do file
+#     write(file, outdirid_p*"\n")
+# end
+
+# ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p*2)
+
+# open(joinpath(outpath_p, "description.txt"), "w") do file
+#     write(file, ans)
+# end
+
+# for i in 1:10
+#     Run(out_bool = true, outpath = outpath_p, EpochNum = EpochNum_p, runid = i )
+# end 
