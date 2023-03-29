@@ -93,11 +93,11 @@ function evaluate(pt, data)
     for indx in 1:DIM_col
        msk = inp[:,indx].==1
        msk = CartesianIndices(msk)[msk]
-       reso = data[1:end-1, msk] \ data[2:end, indx]
+       reso = data[1:end-1, msk] \ data[2:end, prefix+indx]
        inp_[msk,indx] = reso
     end
     p = data[1:end-1,1:DIM_row]*inp_
-    pt.error = rmsd(data[2:end,:], p)
+    pt.error = rmsd(data[2:end,1:DIM_col], p)
 end
 
 
@@ -189,7 +189,7 @@ end
 
 
 DATASET_ = r3
-r3_mod = DATASET_[1:TIMING, 1:DIM_col]
+r3_mod = DATASET_[1:TIMING, :]
 
 
 
