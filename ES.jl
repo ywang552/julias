@@ -89,13 +89,13 @@ end
 
 function evaluate(pt, data)
     inp = pt.dm
-    inp_ = spzeros(DIM,DIM)
-    for indx in 1:DIM
+    inp_ = spzeros(DIM_row,DIM_col)
+    for indx in 1:DIM_col
        msk = inp[:,indx].==1
        reso = data[1:end-1, msk] \ data[2:end, indx]
        inp_[msk,indx] = reso
     end
-    p = data[1:end-1,:]*inp_
+    p = data[1:end-1,1:DIM_row]*inp_
     pt.error = rmsd(data[2:end,:], p)
 end
 
