@@ -155,9 +155,7 @@ function crossover_plain__(v1, v2)
     Ind(c1dm, 0), Ind(c2dm, 0)
 end
 
-p1 = Ind(sprand(Bool, DIM_row, DIM_col, PB), 0 )
-p2 = Ind(sprand(Bool, DIM_row, DIM_col, PB), 0 )
-crossover_plain__(p1,p2)
+
 
 function mutate_flip(pt)
     child = pt.dm
@@ -167,8 +165,9 @@ end
 randspermmat(n) = SparseMatrixCSC(n, n,collect(1:n+1), shuffle(1:n), (1).^rand(Bool,n))
 function mutate_permutation(pt)
     if(rand() < 0.01)
-        pm = randspermmat(DIM)
-        pt.dm = Bool.(pm * pt.dm * pm)
+        pml = randspermmat(DIM_row)
+        pmr = randspermmat(DIM_col)
+        pt.dm = Bool.(pml * pt.dm * pmr)
     end
 end
 
