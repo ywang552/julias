@@ -137,7 +137,7 @@ function crossover_plain__(v1, v2)
     p1 = v1.dm
     p2 = v2.dm
     maxnnz = maximum([nnz(p1), nnz(p2)])
-    tmp = (p1 .&& rand(DIM, DIM).<0.4) .|| (p2 .&& rand(DIM, DIM).<0.4)
+    tmp = (p1 .&& rand(DIM_row, DIM_col).<0.4) .|| (p2 .&& rand(DIM_row, DIM_col).<0.4)
     c1dm = tmp.|| sprand(Bool, DIM_row,DIM_col, PB/10)
     c2dm = tmp.|| sprand(Bool, DIM_row,DIM_col, PB/10)
     c1nnz = nnz(c1dm)
@@ -154,6 +154,10 @@ function crossover_plain__(v1, v2)
     dropzeros!(c2dm)
     Ind(c1dm, 0), Ind(c2dm, 0)
 end
+
+p1 = Ind(sprand(Bool, DIM_row, DIM_col, PB), 0 )
+p2 = Ind(sprand(Bool, DIM_row, DIM_col, PB), 0 )
+crossover_plain__(p1,p2)
 
 function mutate_flip(pt)
     child = pt.dm
