@@ -1,8 +1,8 @@
 fp_ = pwd()
 fn = "RUVrNormalizedCounts.txt"
 fp = joinpath(fp_, fn)
-TIMING = 17
-DIM = 128
+# TIMING = 17
+# DIM = 128
 PB = 0.004
 f = CSV.read(fp, DataFrame, delim = '\t', header = 1)
 f = f[:, 2:end]
@@ -189,9 +189,9 @@ end
 # γ = 25
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
-EpochNum_p = 3
-ParentSize_p = 16
-γ_p = 128
+# EpochNum_p = 1000
+# ParentSize_p = 16
+# γ_p = 128
 function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
@@ -329,26 +329,22 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     return parent
 end
 
+
 outdirid_p = string(rand(collect(1:999999)))
 outpath_p = joinpath(pwd(),"data", outdirid_p)
 mkdir(outpath_p)
 println(outpath_p)
 
-
 open("data_ids.txt", "a") do file
     write(file, outdirid_p*"\n")
 end
-ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p)
+
+ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p*2)
 
 open(joinpath(outpath_p, "description.txt"), "w") do file
     write(file, ans)
 end
 
-ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p)
-
-open(joinpath(outpath_p, "description.txt"), "w") do file
-    write(file, ans)
-end
-for i in 1:3
+for i in 1:10
     Run(out_bool = true, outpath = outpath_p, EpochNum = EpochNum_p, runid = i )
 end 
