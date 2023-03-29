@@ -8,3 +8,4 @@ using Printf
 using Random
 using Serialization
 using Dates
+println("modules finished loading")

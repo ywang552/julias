@@ -189,10 +189,10 @@ end
 # γ = 25
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
-
-
-
-function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = 16, LRStrength = 0.1, γ = 128, DATASET = r3_mod, DIM = DIM)
+EpochNum_p = 3
+ParentSize_p = 16
+γ_p = 128
+function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
     println("starting...")
@@ -333,80 +333,11 @@ outdirid_p = string(rand(collect(1:999999)))
 outpath_p = joinpath(pwd(),"data", outdirid_p)
 mkdir(outpath_p)
 println(outpath_p)
+ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p)
 
-
-Run(out_bool = true, outpath = outpath_p, EpochNum = 10, runid = 1 )
-
-# xs = Ind(sprand(Bool, DIM, DIM, PB),0)
-# mutate_permutation(xs)
-# children = Array{Ind}(undef, 10)
-# children[1] = mutate_permutation_ES(xs)
-
-
-# for i in 1:10
-#     Run(EpochNum = 200)
-# end
-#
-# FPFFF = pwd()*"\\models\\"
-# P1 = deserialize(FPFFF*"55021_models_epoch200_(16+256)")
-# P2 = deserialize(FPFFF*"17611_models_epoch200_(16+256)")
-#
-#
-#
-# p1 = P1[1]
-# p2 = P2[1]
-#
-#
-#
-# r1es = ES(SEED = p1, EpochNum = 200)
-# r2es = ES(SEED = p1, EpochNum = 200)
-# (r1es.dm.+r2es.dm).==1
-# (r1es.dm.+r2es.dm).==2
-# end
-#
-# a, b = crossover_plain__(r1es, r2es)
-# evaluate(a, r3_mod)
-# evaluate(b, r3_mod)
-# P3 = deserialize(FPFFF*"70710_models_epoch200_(16+256)")[1:2]
-# P4 = deserialize(FPFFF*"32484_models_epoch200_(16+256)")[1:2]
-# P5 = deserialize(FPFFF*"72137_models_epoch200_(16+256)")[1:2]
-# P6 = deserialize(FPFFF*"45558_models_epoch200_(16+256)")[1:2]
-# P7 = deserialize(FPFFF*"49514_models_epoch200_(16+256)")[1:2]
-# P8 = deserialize(FPFFF*"72345_models_epoch200_(16+256)")[1:2]
-# P9 = deserialize(FPFFF*"94734_models_epoch200_(16+256)")[1:2]
-# P10 = deserialize(FPFFF*"14287_models_epoch200_(16+256)")[1:2]
-#
-#
-# parents_seed = Array{Ind}(undef, 16)
-# parents_seed[1:2] = P1
-# parents_seed[3:4] = P2
-# parents_seed[5:6] = P3
-# parents_seed[7:8] = P4
-# parents_seed[9:10] = P5
-# parents_seed[11:12] = P6
-# parents_seed[13:14] = P7
-# parents_seed[15:16] = P8
-#
-# reso = Run(SEED = false, EpochNum = 2000, γ=256, ParentSize = 32)
-# reso
-# parents_seed[4]== reso[4]
-# # #
-# P1 = deserialize(FPFFF*"55021_models_epoch200_(16+256)")[1].dm
-# P2 = deserialize(FPFFF*"17611_models_epoch200_(16+256)")[1].dm
-# P3 = deserialize(FPFFF*"70710_models_epoch200_(16+256)")[1].dm
-# P4 = deserialize(FPFFF*"32484_models_epoch200_(16+256)")[1].dm
-# P5 = deserialize(FPFFF*"72137_models_epoch200_(16+256)")[1].dm
-# P6 = deserialize(FPFFF*"45558_models_epoch200_(16+256)")[1].dm
-# P7 = deserialize(FPFFF*"49514_models_epoch200_(16+256)")[1].dm
-# P8 = deserialize(FPFFF*"72345_models_epoch200_(16+256)")[1].dm
-# P9 = deserialize(FPFFF*"94734_models_epoch200_(16+256)")[1].dm
-# P10 = deserialize(FPFFF*"14287_models_epoch200_(16+256)")[1].dm
-#
-# FPFFF = pwd()*"\\models\\"
-# a,b = deserialize(FPFFF*"70710_hist_epoch200_(16+256)")
-# plot(1:200, minimum(a,dims=2), yaxis =:log )
-# plot!(1:200, mean(a,dims=2), yaxis =:log )
-# a = (P1+P2+P3+P4+P5+P6+P7+P8+P9+P10)
-# a.==1
-# a.==2
-# a.==3
+open(joinpath(outpath_p, "description.txt"), "w") do file
+    write(file, ans)
+end
+for i in 1:3
+    Run(out_bool = true, outpath = outpath_p, EpochNum = EpochNum_p, runid = i )
+end 
