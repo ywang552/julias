@@ -1,15 +1,3 @@
-using CSV
-using DataFrames
-using Plots
-using StatsBase
-using StatsFuns
-using SparseArrays
-using Printf
-using Random
-using Serialization
-
-#fp = "E:\\julias\\data\\RUVrNormalizedCounts.txt"
-# fp = "/home/ywang552/research/gene_test/RUVrNormalizedCounts.txt"
 fp_ = pwd()
 fn = "RUVrNormalizedCounts.txt"
 fp = joinpath(fp_, fn)
@@ -283,7 +271,6 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
         serialize(out_filename*"_hist",[printBook[1:EpochNum, :],nnzbook[1:EpochNum]] )
         serialize(out_filename*"_models",parents)
     end
-    return parents
 end
 
 
