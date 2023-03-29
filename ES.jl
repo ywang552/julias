@@ -89,16 +89,27 @@ end
 
 function evaluate(pt, data, sliding)
     inp = pt.dm
+    data_t = data[:, 1+sliding:end]
     inp_ = spzeros(DIM_row,DIM_col)
     for indx in 1:DIM_col
        msk = inp[:,indx].==1
        msk = CartesianIndices(msk)[msk]
-       reso = data[1:end-1, msk] \ data[2:end, prefix+indx]
+       reso = data_t[1:end-1,  msk] \ data[2:end, indx]
        inp_[msk,indx] = reso
     end
-    p = data[1:end-1,1:DIM_row]*inp_
+    p = data[1:end-1,1+sliding : sliding+DIM_row]*inp_
     pt.error = rmsd(data[2:end,1:DIM_col], p)
 end
+
+p1 = Ind(sprand(Bool, DIM_row, DIM_col, PB), 0)
+evaluate(p1, r3_mod, DIM_row*1)
+
+
+
+DATASET_ = r3
+r3_mod = DATASET_[1:TIMING, :]
+
+
 
 
 function LRank(num::Int64, p::Float64)
@@ -194,7 +205,7 @@ r3_mod = DATASET_[1:TIMING, :]
 
 
 
-function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
+function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod)
     ### generate
     flush(stdout)
     println("starting...")
