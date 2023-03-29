@@ -1,6 +1,6 @@
 DIM_row = 128
-DIM_col = 4867
-TIMING = 17
+DIM_col = 1000
+TIMING = 37
 EpochNum_p = 5000
-ParentSize_p = 16
-γ_p = 128
+ParentSize_p = 4
+γ_p = 32

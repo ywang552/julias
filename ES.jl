@@ -189,7 +189,7 @@ end
 
 
 DATASET_ = r3
-r3_mod = DATASET_[1:TIMING, :]
+r3_mod = DATASET_[1:TIMING, 1:DIM_col]
 
 
 
@@ -200,7 +200,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
     println("starting...")
     @printf "μ = %d, λ = %d\n" ParentSize γ*2
     if(SEED == false)
-        parents = [Ind(sprand(Bool,DIM, DIM, PB), 0) for _ in 1:ParentSize]
+        parents = [Ind(sprand(Bool,DIM_row, DIM_col, PB), 0) for _ in 1:ParentSize]
     else
         parents = SEED
     end
@@ -255,14 +255,14 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
         hist_book = (map(x->x.error, parents))
         printBook[counter,:] = hist_book
         nnzbook[counter] = nnz(parents[1].dm)
-        # if(counter%10==0)
-        #     p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
-        #     p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
-        #     p2 = plot(1:counter, nnzbook[1:counter])
-        #     t = plot(p,p2, layout=(2,1), legend = false)
-        #     display(t)
-        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        # end
+        if(counter%10==0)
+            p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
+            p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
+            p2 = plot(1:counter, nnzbook[1:counter])
+            t = plot(p,p2, layout=(2,1), legend = false)
+            display(t)
+            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        end
         @printf "mean is %.4f\n" mean(hist_book)
         @printf "worst is %.4f\n" maximum(hist_book)
         @printf "best is %.4f\n" minimum(hist_book)
@@ -332,7 +332,7 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
 end
 
 
-# Run()
+Run()
 
 
 
