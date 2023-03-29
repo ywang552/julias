@@ -101,7 +101,6 @@ function evaluate(pt, data)
 end
 
 
-
 function LRank(num::Int64, p::Float64)
     phi = p
     N = num+1
@@ -139,8 +138,8 @@ function crossover_plain__(v1, v2)
     p2 = v2.dm
     maxnnz = maximum([nnz(p1), nnz(p2)])
     tmp = (p1 .&& rand(DIM, DIM).<0.4) .|| (p2 .&& rand(DIM, DIM).<0.4)
-    c1dm = tmp.|| sprand(Bool, DIM,DIM, PB/10)
-    c2dm = tmp.|| sprand(Bool, DIM,DIM, PB/10)
+    c1dm = tmp.|| sprand(Bool, DIM_row,DIM_col, PB/10)
+    c2dm = tmp.|| sprand(Bool, DIM_row,DIM_col, PB/10)
     c1nnz = nnz(c1dm)
     c2nnz = nnz(c2dm)
     if(c1nnz > maxnnz)
