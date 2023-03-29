@@ -92,12 +92,15 @@ function evaluate(pt, data)
     inp_ = spzeros(DIM_row,DIM_col)
     for indx in 1:DIM_col
        msk = inp[:,indx].==1
+       msk = CartesianIndices(msk)[msk]
        reso = data[1:end-1, msk] \ data[2:end, indx]
        inp_[msk,indx] = reso
     end
     p = data[1:end-1,1:DIM_row]*inp_
     pt.error = rmsd(data[2:end,:], p)
 end
+
+
 
 function LRank(num::Int64, p::Float64)
     phi = p
@@ -184,7 +187,10 @@ end
 
 
 DATASET_ = r3
-r3_mod = DATASET_[1:TIMING, 1:DIM]
+r3_mod = DATASET_[1:TIMING, :]
+
+
+
 
 function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
@@ -324,7 +330,7 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
 end
 
 
-Run()
+# Run()
 
 
 
