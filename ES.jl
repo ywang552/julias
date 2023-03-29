@@ -87,7 +87,7 @@ function Base.isless(x::Ind, y::Ind)
     end
 end
 
-function evaluate(pt, data)
+function evaluate(pt, data, sliding)
     inp = pt.dm
     inp_ = spzeros(DIM_row,DIM_col)
     for indx in 1:DIM_col
