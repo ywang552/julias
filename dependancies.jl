@@ -5,6 +5,8 @@ using StatsBase
 using StatsFuns
 using SparseArrays
 using Printf
+using LinearAlgebra
+using Distributions
 using Random
 using Serialization
 using Dates

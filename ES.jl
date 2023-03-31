@@ -88,17 +88,7 @@ function Base.isless(x::Ind, y::Ind)
     end
 end
 
-function evaluate(pt, data)
-    inp = pt.dm
-    inp_ = spzeros(DIM,DIM)
-    for indx in 1:DIM
-       msk = inp[:,indx].==1
-       reso = data[1:end-1, msk] \ data[2:end, indx]
-       inp_[msk,indx] = reso
-    end
-    p = data[1:end-1,:]*inp_
-    pt.error = rmsd(data[2:end,:], p)
-end
+
 
 function LRank(num::Int64, p::Float64)
     phi = p
@@ -192,7 +182,7 @@ r3_mod = DATASET_[1:TIMING, 1:DIM]
 # EpochNum_p = 1000
 # ParentSize_p = 16
 # γ_p = 128
-function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
+function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = EpochNum_p, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
     println("starting...")
@@ -204,7 +194,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
     end
     println("evaluating parents...")
     Threads.@threads for i in 1:ParentSize
-        evaluate(parents[i], DATASET)
+        evaluate(parents[i], DATASET, off_test)
     end
     ## start iteration
     printBook = Array{Float64}(undef, EpochNum, ParentSize) # record all individuals' fitness per epoch
@@ -244,7 +234,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
         # println("evaluating...")
         Threads.@threads for i in 1:size(children,1)
             # println(i)
-            evaluate(children[i], DATASET)
+            evaluate(children[i], DATASET, off_test)
         end
 
         total_array = vcat(parents, children)
@@ -253,14 +243,14 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
         hist_book = (map(x->x.error, parents))
         printBook[counter,:] = hist_book
         nnzbook[counter] = nnz(parents[1].dm)
-        # if(counter%10==0)
-        #     p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
-        #     p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
-        #     p2 = plot(1:counter, nnzbook[1:counter])
-        #     t = plot(p,p2, layout=(2,1), legend = false)
-        #     display(t)
-        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        # end
+        if(counter%10==0)
+            p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
+            p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
+            p2 = plot(1:counter, nnzbook[1:counter])
+            t = plot(p,p2, layout=(2,1), legend = false)
+            display(t)
+            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        end
         @printf "mean is %.4f\n" mean(hist_book)
         @printf "worst is %.4f\n" maximum(hist_book)
         @printf "best is %.4f\n" minimum(hist_book)
@@ -271,6 +261,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = 500, runi
         serialize(out_filename*"_hist",[printBook[1:EpochNum, :],nnzbook[1:EpochNum]] ) # record both printbook and nnzbook
         serialize(out_filename*"_models",parents)
     end
+    return parents
 end
 
 
@@ -304,13 +295,13 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
         parent = total[1]
         performance_hist[counter] = parent.error
         nnz_hist[counter] = nnz(parent.dm)
-        # if(counter%10==0)
-        #     p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
-        #     p2 = plot(1:counter, nnz_hist[1:counter])
-        #     t = plot(p,p2, layout=(2,1), legend = false)
-        #     display(t)
-        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        # end
+        if(counter%10==0)
+            p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
+            p2 = plot(1:counter, nnz_hist[1:counter])
+            t = plot(p,p2, layout=(2,1), legend = false)
+            display(t)
+            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        end
         @printf "error is %.4f\n" performance_hist[counter]
         @printf "nnz is %d\n" nnz_hist[counter]
         if(counter>1)
@@ -329,10 +320,136 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     return parent
 end
 
-"this is the master branch"
+
+I_, J_, K_ = findnz(reso)
+
+Z = Array{Bool}(undef, size(K_,1))
+Z.=1
+
+inp = sparse(I_ ,J_, Z)
+inp_ = spzeros(4867,4867)
+d_ = data_test.-off_test
+for indx in 1:test_dim
+    msk = inp[:,indx].==1
+    reso__ = (d_[1:end-1, msk] ) \(d_[2:end, indx] )
+    inp_[msk,indx] = reso__
+end 
+data_test
+p = (d_[1:end-1,:])*inp_ .+ off_test
+rmsd(data_test[2:end,:], p)
 
 
-Run()
+function evaluate(pt, data, offset)
+    inp = pt.dm
+    inp_ = spzeros(DIM,DIM)
+    for indx in 1:DIM
+       msk = inp[:,indx].==1
+       reso = (data[1:end-1, msk] .- offset[:,msk]) \(data[2:end, indx] .- offset[indx])
+       inp_[msk,indx] = reso
+    end
+    p = (data[1:end-1,:].- off_test)*inp_ .+ off_test
+    pt.error = rmsd(data[2:end,:], p)
+end
+
+
+4867*0.0023
+0.0023
+
+100 
+0.12
+
+test_dim = 4867
+vc = 37
+timet_test = TIMING
+off_test = rand(Uniform(0, 10), 1,test_dim, )
+off_test
+reso = sprand(test_dim, test_dim,0.0023, n->rand(Uniform(-0.5,0.5),n)) 
+reso[diagind(reso)] .= 0
+init_test = rand(1, test_dim) 
+init_test
+data_test = zeros(timet_test, test_dim)
+data_test[1,:] = init_test
+ubt = off_test.+0.5
+lbt = off_test.-0.5
+
+for i in 2:timet_test
+    data_test[i, :] = data_test[i-1,:]'*reso 
+    # msk = data_test[i,:] .> ubt[:]
+    # data_test[i, msk].=ubt[msk]
+    # msk = data_test[i,:] .< ubt[:]
+    # data_test[i, msk].=lbt[msk]
+end
+
+
+data_test = data_test.+off_test
+pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
+
+
+
+
+
+
+
+
+
+
+
+pl = plot(1:vc, r3[1:vc, 1:10], legend = false)
+pl = plot(1:vc, data_test[1:vc, 1:50], legend = false)
+
+
+# # data_test[data_test.==0]
+# data_test
+# # data_test = Array{Float64}(undef, TIMING, DIM)
+# # data_test .= 1
+p = Run(DATASET =  data_test)
+
+
+# p[1].dm
+# reso
+
+reso
+x = findall(!iszero,p[1].dm)
+y = findall(!iszero,reso)
+ctttttt = 0
+for tmp in x
+    global  ctttttt
+    if(tmp in y)
+        ctttttt = ctttttt+1
+    end 
+end 
+
+println(ctttttt)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
