@@ -3,10 +3,9 @@ fn = "RUVrNormalizedCounts.txt"
 fp = joinpath(fp_, fn)
 # TIMING = 17
 # DIM = 128
-PB = 0.004
 f = CSV.read(fp, DataFrame, delim = '\t', header = 1)
 f = f[:, 2:end]
-
+p = 0
 t1 = f[:, 1:3:66]
 t2 = f[:, 69:3:110]
 t_1 = hcat(t1, t2)
@@ -159,7 +158,7 @@ end
 
 function mutate_permutation_ES(pt; mutation_strength = 0.1)
     reso = Ind(Bool.(pt.dm), 0)
-    tdn = Int(floor(nnz(reso.dm)*0.1))
+    tdn = Int(floor(nnz(reso.dm)*mutation_strength))
     x_ = sample(collect(1:DIM), tdn)
     y_ = sample(collect(1:DIM), tdn)
     tc = findall(!iszero, reso.dm)
@@ -171,6 +170,124 @@ function mutate_permutation_ES(pt; mutation_strength = 0.1)
     return reso
 end
 
+function fastmut(pt, ms, ub, lb)
+    local nr
+    cond = true
+    while(cond)
+        a = pt.dm .&& rand(DIM, DIM).<(1-ms)
+        nr = dropzeros(a.|| rand(DIM,DIM).<PB*ms/((1-PB)+PB*ms))
+        if(nnz(nr) < ub && nnz(nr)> lb)
+            cond = false
+        end 
+    end 
+    return Ind(nr,0)
+end 
+
+function fastmut_window(pt, ms)
+    ms = 0.5
+    it, jt, kt, = findnz(pt.dm)
+    tt = nnz(pt.dm)
+    ts = Int(floor(ms*tt))
+    sp = sample(1:tt, tt - ts, replace=false)
+    for toreplace in sp 
+        l = rand(1:window_size)
+        r = rand(1:window_size)
+        while((l,r) in zip(it, jt))
+
+            l = rand(1:window_size)
+            r = rand(1:window_size)
+
+        end 
+        it[toreplace] = l 
+        jt[toreplace] = r
+    end 
+    rs = sparse(it,jt, kt, window_size, window_size)
+    # rs[diagind(rs)] .= 0
+    # dropzeros!(rs)
+    return Ind(rs, 0)
+end 
+
+
+function imba_mutation(ptr)
+    mut = 0.1
+    a = zeros(size(ptr.dm.nzval))
+    b = similar(ptr.dm.nzval, Vector{Int16})
+    idx = 1
+    for (x,y,z) in zip(findnz(ptr.dm)...)
+        local pred
+        r = data_test[1:end-1, x] \ data_test[2:end, y]
+        pred = data_test[1:end-1, x] * r .+ off_test[y]
+        a[idx] = rmsd(pred, data_test[2:end, y])
+        b[idx] = [x,y]
+        idx = idx + 1
+    end 
+    perm = sortperm(a)
+    b .= b[perm]
+    c = zeros(Int, size(b,1), 2)
+    c[1:end, 1] .= map(x->x[1], b)
+    c[1:end, 2] .= map(x->x[2], b)
+    tar = Int(floor(size(b,1)*mut))
+
+    nr = spzeros(Bool, DIM,DIM)
+    l = zeros(Int, size(b))
+    r = zeros(Int, size(b))
+    l[1:tar] = c[1:tar,1]
+    r[1:tar] = c[1:tar,2]
+    for i in eachindex(b)
+        if(i>tar)
+            a_,b_ = rand(1:DIM), rand(1:DIM)
+            while((a_,b_) in zip(l,r))
+                a_,b_ = rand(1:DIM), rand(1:DIM)
+            end
+            l[i] = a_
+            r[i] = b_
+        end 
+    end 
+
+    for (x,y) in zip(l,r)
+        nr[x,y] = 1
+    end 
+    Ind(nr, 0)
+end 
+
+function mut_mut(ptr)
+    p = ptr.dm
+    nr = spzeros(DIM, DIM)
+    mut = 0.1
+    colCounter = 1
+    for col in eachcol(p)
+        tp = Int(sum(col))
+        s = Int(ceil(tp*mut))
+        ta = Array{Float64}(undef, tp)
+        ra = Array{Int16}(undef, tp)
+        ca = ones(Int16,tp)*colCounter
+        rowCounter = 1
+        for index in eachindex(col)
+            if(p[index,colCounter] == 1)
+                r = data_test[1:end-1, index] \ data_test[2:end, colCounter]
+                pred = data_test[1:end-1, index] * r .+ off_test[colCounter]
+                ta[rowCounter] = rmsd(pred, data_test[2:end, colCounter])
+                ra[rowCounter] = index
+                rowCounter = rowCounter + 1
+            end 
+        end 
+        perm = sortperm(ta)
+        ra = ra[perm]
+        for index in s+1:tp
+            newRow = rand(1:DIM)
+            while(newRow in ra)
+                newRow = rand(1:DIM)
+            end 
+            ra[index] = newRow
+        end 
+        for (x,y) in zip(ra,ca)
+            nr[x,y] = 1
+        end 
+        colCounter = colCounter + 1
+    end 
+
+    return Ind(nr,0) 
+end 
 
 
 ## hyperparameters
@@ -247,7 +364,9 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = EpochNum_
             p = plot(1:counter, minimum(printBook[1:counter, :], dims=2),yaxis=:log)
             p = plot!(1:counter, mean(printBook[1:counter, :], dims=2),yaxis=:log)
             p2 = plot(1:counter, nnzbook[1:counter])
-            t = plot(p,p2, layout=(2,1), legend = false)
+            p3 = plotSol(parents[1])
+
+            t = plot(p,p2, p3, layout=(3,1), legend = false)
             display(t)
             # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
         end
@@ -265,7 +384,7 @@ function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = EpochNum_
 end
 
 
-function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = DIM, PB = 0.004, starting_mutation_strength = 0.1)
+function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = DIM, PB = PB, starting_mutation_strength = 0.8)
     flush(stdout)
     runid = rand(collect(1:99999))
     println("starting...")
@@ -276,32 +395,55 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
     else
         parent = SEED
     end
-    evaluate(parent, DATASET)
+    evaluate(parent, DATASET, off_test)
     children = Array{Ind}(undef, λ)
     nnz_hist = Array{Int}(undef, EpochNum)
     performance_hist = Array{Float64}(undef, EpochNum)
     ms = starting_mutation_strength
+    ub = Int(floor(nnz(parent.dm)*1.008))
+    lb = Int(floor(nnz(parent.dm)*0.992))
     unchanged_counter = -1
     for counter in 1:EpochNum
         @printf "--------Current Epoch is %d------ \n" counter
         @printf "ms is %.2f \n" ms
         @printf "unchanged_counter is %d \n" unchanged_counter
         for i in 1:λ
-            children[i] = mutate_permutation_ES(parent, mutation_strength = ms)
-            evaluate(children[i], DATASET)
+            if(rand()<0.5)
+                children[i] = fastmut(parent, ms, ub, lb)
+            else
+                children[i] = mut_mut(parent)
+                children[i] = imba_mutation(children[i])
+            end 
+            evaluate(children[i], DATASET,off_test)
         end
         total = vcat(parent, children)
+        # total = vcat(children)
         sort!(total)
+
         parent = total[1]
         performance_hist[counter] = parent.error
         nnz_hist[counter] = nnz(parent.dm)
-        if(counter%10==0)
-            p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
-            p2 = plot(1:counter, nnz_hist[1:counter])
-            t = plot(p,p2, layout=(2,1), legend = false)
+        # if(counter < 20)
+        #     t = plot(plotSol(parent), title = "epoch number "*string(counter))
+        #     display(t)
+
+        # elseif(counter%10==0)
+        #     # p = plot(1:counter, performance_hist[1:counter],yaxis=:log)
+        #     # p2 = plot(1:counter, nnz_hist[1:counter])
+        #     # hline!([ub ub])
+        #     # hline!([lb lb])
+        #     # t = plot(p,p2, layout=(2,1), legend = false)
+        #     # display(t)
+        #     t = plot(plotSol(parent), title = "epoch number "*string(counter))
+        #     display(t)
+        #     # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
+        # end
+        if(unchanged_counter == 0 || unchanged_counter == -1)
+            t = plot(plotSol(parent), title = "epoch number "*string(counter))
             display(t)
-            # @printf "c1 sim: %.3f, c2 sim: %.3f \n" c1df c2df
-        end
+        end 
+
+
         @printf "error is %.4f\n" performance_hist[counter]
         @printf "nnz is %d\n" nnz_hist[counter]
         if(counter>1)
@@ -309,7 +451,7 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
                 unchanged_counter = unchanged_counter+1
             else
                 unchanged_counter = 0
-                ms = 0.1
+                ms = starting_mutation_strength
             end
         end
         if(unchanged_counter>ms*ms*1000)
@@ -321,50 +463,16 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
 end
 
 
-I_, J_, K_ = findnz(reso)
-
-Z = Array{Bool}(undef, size(K_,1))
-Z.=1
-
-inp = sparse(I_ ,J_, Z)
-inp_ = spzeros(4867,4867)
-d_ = data_test.-off_test
-for indx in 1:test_dim
-    msk = inp[:,indx].==1
-    reso__ = (d_[1:end-1, msk] ) \(d_[2:end, indx] )
-    inp_[msk,indx] = reso__
-end 
-data_test
-p = (d_[1:end-1,:])*inp_ .+ off_test
-rmsd(data_test[2:end,:], p)
-
-
-function evaluate(pt, data, offset)
-    inp = pt.dm
-    inp_ = spzeros(DIM,DIM)
-    for indx in 1:DIM
-       msk = inp[:,indx].==1
-       reso = (data[1:end-1, msk] .- offset[:,msk]) \(data[2:end, indx] .- offset[indx])
-       inp_[msk,indx] = reso
-    end
-    p = (data[1:end-1,:].- off_test)*inp_ .+ off_test
-    pt.error = rmsd(data[2:end,:], p)
-end
-
-
-4867*0.0023
-0.0023
-
-100 
-0.12
-
-test_dim = 4867
+test_dim = DIM
 vc = 37
 timet_test = TIMING
 off_test = rand(Uniform(0, 10), 1,test_dim, )
 off_test
-reso = sprand(test_dim, test_dim,0.0023, n->rand(Uniform(-0.5,0.5),n)) 
+reso = sprand(test_dim, test_dim,PB, n->rand(Uniform(-0.5,0.5),n)) 
 reso[diagind(reso)] .= 0
+r_ = spzeros(DIM,DIM)
+r_[reso.!=0] .= 1
+
 init_test = rand(1, test_dim) 
 init_test
 data_test = zeros(timet_test, test_dim)
@@ -374,15 +482,54 @@ lbt = off_test.-0.5
 
 for i in 2:timet_test
     data_test[i, :] = data_test[i-1,:]'*reso 
-    # msk = data_test[i,:] .> ubt[:]
-    # data_test[i, msk].=ubt[msk]
-    # msk = data_test[i,:] .< ubt[:]
-    # data_test[i, msk].=lbt[msk]
+end
+
+plot(1:vc, r3[1:vc, 1:10], legend = false)
+data_test = data_test.+off_test
+pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
+display(pl)
+@printf "reso size: %d\n" nnz(reso)
+map(x->x==1 ? RGB(0,1,0) : RGB(0,0,0), r_)
+
+# sleep(3)
+
+# I_, J_, K_ = findnz(reso)
+
+# Z = Array{Bool}(undef, size(K_,1))
+# Z.=1
+if(true)
+    a = 1
+elseif(false)
+    b= 1
+end 
+# inp = sparse(I_ ,J_, Z)
+# inp_ = spzeros(4867,4867)
+# d_ = data_test.-off_test
+# for indx in 1:test_dim
+#     msk = inp[:,indx].==1
+#     reso__ = (d_[1:end-1, msk] ) \(d_[2:end, indx] )
+#     inp_[msk,indx] = reso__
+# end 
+# data_test
+# p = (d_[1:end-1,:])*inp_ .+ off_test
+# rmsd(data_test[2:end,:], p)
+
+
+function evaluate(pt, data, offset)
+    inp = pt.dm
+    inp_ = spzeros(DIM,DIM)
+    data_ = data.-offset
+    for indx in 1:DIM
+       msk = inp[:,indx].==1
+       msk = CartesianIndices(msk)[msk]
+       reso_ = (data_[1:end-1, msk] ) \ (data_[2:end, indx] )
+       inp_[msk,indx] = reso_
+    end
+    p = (data_[1:end-1,:])*inp_ .+ offset
+    pt.error = rmsd(data[2:end,:], p)
 end
 
 
-data_test = data_test.+off_test
-pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
 
 
 
@@ -391,35 +538,170 @@ pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
 
 
 
+function calculate(pt, data, offset)
+    inp = pt.dm
+    inp_ = spzeros(DIM,DIM)
+    data = data.-offset
+    for indx in 1:DIM
+       msk = inp[:,indx].==1
+       msk = CartesianIndices(msk)[msk]
+       reso_ = (data[1:end-1, msk] ) \ (data[2:end, indx] )
+       inp_[msk,indx] = reso_
+    end
+    p = (data[1:end-1,:])*inp_ .+ offset
+    return p
+end
 
 
-
-pl = plot(1:vc, r3[1:vc, 1:10], legend = false)
-pl = plot(1:vc, data_test[1:vc, 1:50], legend = false)
-
-
-# # data_test[data_test.==0]
-# data_test
-# # data_test = Array{Float64}(undef, TIMING, DIM)
-# # data_test .= 1
-p = Run(DATASET =  data_test)
-
-
-# p[1].dm
-# reso
-
-reso
-x = findall(!iszero,p[1].dm)
-y = findall(!iszero,reso)
-ctttttt = 0
-for tmp in x
-    global  ctttttt
-    if(tmp in y)
-        ctttttt = ctttttt+1
+function evaluate_gene(pt, data, offset, i)
+    inp = pt.dm
+    inp_ = spzeros(DIM,DIM)
+    data_ = data.-offset
+    for indx in 1:DIM
+       msk = inp[:,indx].==1
+       msk = CartesianIndices(msk)[msk]
+       reso_ = (data_[1:end-1, msk] ) \ (data_[2:end, indx] )
+       inp_[msk,indx] = reso_
+    end
+    p = (data_[1:end-1,:])*inp_ .+ offset
+    return rmsd(data[2:end,i], p[:,i])
+end
+function plotSol(ptr)
+    m = ptr.dm
+    c1 = 0
+    c2 = 0 
+    c3 = 0
+    a = map(x->RGB(0,0,0), m)
+    for i in eachindex(r_)
+        if(m[i] == 1 && r_[i] == 1)
+            a[i]=RGB(0,1,0)
+            c1 = c1+1
+        end 
+        if(m[i] == 1 && r_[i] == 0)
+            a[i]=RGB(1,0,0)
+            c2 = c2+1
+        end 
+        if(m[i] == 0 && r_[i] == 1 )
+            a[i] = RGB(0.571945,0.42736,0.548254)
+            c3 = c3+1
+        end 
     end 
+    t1 = "c1:" *string(c1)
+    t2 = "c2:" *string(c2)
+    t3 = "c3:" *string(c3)
+    res = plot(a, axis = nothing, annotations = (DIM, 0, Plots.text(t1, :left)))
+    annotate!(DIM, 40, Plots.text(t2, :left))
+    annotate!(DIM, 80, Plots.text(t3, :left))
+    return res
 end 
 
-println(ctttttt)
+function plotSol_window(ptr, is, js, windowsize)
+    m = ptr.dm
+
+    c1 = 0
+    c2 = 0 
+    c3 = 0
+    r = r_[1+is*windowsize:(is+1)*windowsize, 1+js*windowsize: (js+1)*windowsize]
+    a = map(x->RGB(0,0,0), m)
+    for i in eachindex(r)
+        if(m[i] == 1 && r[i] == 1)
+            a[i]=RGB(0,1,0)
+            c1 = c1+1
+        end 
+        if(m[i] == 1 && r[i] == 0)
+            a[i]=RGB(1,0,0)
+            c2 = c2+1
+        end 
+        if(m[i] == 0 && r[i] == 1 )
+            a[i] = RGB(0.571945,0.42736,0.548254)
+            c3 = c3+1
+        end 
+    end 
+    t1 = "c1:" *string(c1)
+    t2 = "c2:" *string(c2)
+    t3 = "c3:" *string(c3)
+    res = plot(a, axis = nothing, annotations = (windowsize, 0, Plots.text(t1, :left)))
+    annotate!(windowsize, 0.5*windowsize, Plots.text(t2, :left))
+    annotate!(windowsize, windowsize, Plots.text(t3, :left))
+    return res
+end 
+
+function evaluate_sw(pt, data, offset, is, js, window_size)
+    inp = pt.dm
+    inp_ = spzeros(window_size,window_size)
+    data_ = data.-offset
+    for indx in 1:window_size
+        msk = inp[:,indx] .== 1
+        msk = CartesianIndices(msk)[msk]
+        msk_ = similar(msk)
+        for i in eachindex(msk)
+            msk_[i] = msk[i] + CartesianIndex(window_size*is)
+        end 
+        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size*js] 
+        inp_[msk,indx] = reso
+    end 
+    p = (data_[1:end-1, 1+window_size*is : window_size*(is+1)])*inp_ .+offset[1+window_size*js:window_size*(js+1)]'
+    pt.error = rmsd(data[2:end,1+window_size*js:window_size*(js+1)], p)
+end 
+
+
+
+function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM_ = DIM, PB_ = PB, starting_mutation_strength = 0.8, windsize_ = 32)
+    flush(stdout)
+    println("starting...")
+    @printf "λ = %d\n" λ
+    if(SEED == false)
+        parent = Ind(sprand(Bool, windsize_, windsize_, PB),0)
+    else
+        parent = SEED
+    end
+    evaluate_sw(parent, DATASET, off_test, is, js, windsize_)
+    children = Array{Ind}(undef, λ)
+    nnz_hist = Array{Int}(undef, EpochNum)
+    performance_hist = Array{Float64}(undef, EpochNum)
+    ms = starting_mutation_strength
+    ub = Int(floor(nnz(parent.dm)*1.008))
+    lb = Int(floor(nnz(parent.dm)*0.992))
+    unchanged_counter = -1
+    for counter in 1:EpochNum
+        @printf "--------Current Epoch is %d------ \n" counter
+        @printf "ms is %.2f \n" ms
+        @printf "unchanged_counter is %d \n" unchanged_counter
+        for i in 1:λ
+            children[i] = fastmut_window(parent, ms)
+            evaluate_sw(children[i], DATASET, off_test,is, js, window_size)
+        end
+        # total = vcat(parent, children)
+        total = vcat(children)
+        sort!(total)
+
+        parent = total[1]
+        performance_hist[counter] = parent.error
+        nnz_hist[counter] = nnz(parent.dm)
+
+        if(unchanged_counter == 0 || unchanged_counter == -1)
+            t = plot(plotSol_window(parent, is, js, window_size), title = "epoch number "*string(counter))
+            display(t)
+        end 
+
+
+        @printf "error is %.8f\n" performance_hist[counter]
+        @printf "nnz is %d\n" nnz_hist[counter]
+        if(counter>1)
+            if(performance_hist[counter] == performance_hist[counter-1])
+                unchanged_counter = unchanged_counter+1
+            else
+                unchanged_counter = 0
+                ms = starting_mutation_strength
+            end
+        end
+        if(unchanged_counter>ms*ms*1000)
+            ms = ms + 0.05
+            unchanged_counter = 0
+        end
+    end
+    return parent
+end 
 
 
 
@@ -433,32 +715,26 @@ println(ctttttt)
 
 
 
+p = Ind(sprand(Bool, window_size, window_size, PB), 0 )
+
+ES_sliding(EpochNum= EpochNum_p, λ = λ_, DATASET = data_test, DIM_ = DIM, PB_ = PB, starting_mutation_strength = sms, windsize_ = window_size)
+# p = ES(DATASET = data_test, λ = λ_, PB = PB, EpochNum = EpochNum_p, starting_mutation_strength = sms)
+# evaluate(p2, data_test, off_test)
+# p = p[1][1]
 
 
 
+# evaluate(p[1], data_test, off_test)
+# p = [p]
+# s = calculate(p[1], data_test, off_test)
+# s2 = calculate(p2, data_test, off_test)
+# pl = plot(1:vc, data_test[1:vc, 1:10], legend = false, seriestype =:path, linestyle=:dash)
+# plot(1:vc, vcat(data_test[1,:]',s)[1:vc, 1:10], seriestype =:path, linestyle=:dash)
+# plot!(1:vc, vcat(data_test[1,:]',s2)[1:vc, 1:10], seriestype =:path, linestyle=:dash)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# for i in 1:DIM
+#     println(i, ": ",evaluate_gene(p2,data_test,off_test,i)) 
+# end 
 
 
 

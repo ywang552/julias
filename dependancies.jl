@@ -9,5 +9,6 @@ using LinearAlgebra
 using Distributions
 using Random
 using Serialization
+using Colors
 using Dates
 println("modules finished loading")
