@@ -146,7 +146,8 @@ end
 function mutate_flip(pt)
     child = pt.dm
     tm = sprand(Bool, DIM, DIM, 1e-8)
-    pt.dm = child.|| tm
+    pt.dm = xor.(child,  tm)
+    return pt 
 end
 randspermmat(n) = SparseMatrixCSC(n, n,collect(1:n+1), shuffle(1:n), (1).^rand(Bool,n))
 function mutate_permutation(pt)
@@ -156,7 +157,7 @@ function mutate_permutation(pt)
     end
 end
 
-function mutate_permutation_ES(pt; mutation_strength = 0.1)
+function mutate_permutation_ES(pt, mutation_strength = 0.1)
     reso = Ind(Bool.(pt.dm), 0)
     tdn = Int(floor(nnz(reso.dm)*mutation_strength))
     x_ = sample(collect(1:DIM), tdn)
@@ -184,24 +185,23 @@ function fastmut(pt, ms, ub, lb)
 end 
 
 function fastmut_window(pt, ms)
-    ms = 0.5
     it, jt, kt, = findnz(pt.dm)
     tt = nnz(pt.dm)
     ts = Int(floor(ms*tt))
     sp = sample(1:tt, tt - ts, replace=false)
     for toreplace in sp 
-        l = rand(1:window_size)
-        r = rand(1:window_size)
+        l = rand(1:window_size_l)
+        r = rand(1:window_size_r)
         while((l,r) in zip(it, jt))
 
-            l = rand(1:window_size)
-            r = rand(1:window_size)
+            l = rand(1:window_size_l)
+            r = rand(1:window_size_r)
 
         end 
         it[toreplace] = l 
         jt[toreplace] = r
     end 
-    rs = sparse(it,jt, kt, window_size, window_size)
+    rs = sparse(it,jt, kt, window_size_l, window_size_r)
     # rs[diagind(rs)] .= 0
     # dropzeros!(rs)
     return Ind(rs, 0)
@@ -595,13 +595,13 @@ function plotSol(ptr)
     return res
 end 
 
-function plotSol_window(ptr, is, js, windowsize)
+function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
     m = ptr.dm
 
     c1 = 0
     c2 = 0 
     c3 = 0
-    r = r_[1+is*windowsize:(is+1)*windowsize, 1+js*windowsize: (js+1)*windowsize]
+    r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
     a = map(x->RGB(0,0,0), m)
     for i in eachindex(r)
         if(m[i] == 1 && r[i] == 1)
@@ -620,42 +620,56 @@ function plotSol_window(ptr, is, js, windowsize)
     t1 = "c1:" *string(c1)
     t2 = "c2:" *string(c2)
     t3 = "c3:" *string(c3)
-    res = plot(a, axis = nothing, annotations = (windowsize, 0, Plots.text(t1, :left)))
-    annotate!(windowsize, 0.5*windowsize, Plots.text(t2, :left))
-    annotate!(windowsize, windowsize, Plots.text(t3, :left))
+    res = plot(a, axis = nothing, annotations = (windowsize_r, 0, Plots.text(t1, :left)))
+    annotate!(windowsize_r, 0.3 * window_size_l, Plots.text(t2, :left))
+    annotate!(windowsize_r, 0.6 * window_size_l, Plots.text(t3, :left))
     return res
 end 
 
-function evaluate_sw(pt, data, offset, is, js, window_size)
+
+p = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
+plotSol_window(p, 0, 0, window_size_l, window_size_r)
+
+
+function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     inp = pt.dm
-    inp_ = spzeros(window_size,window_size)
+    inp_ = spzeros(window_size_l,window_size_r)
     data_ = data.-offset
-    for indx in 1:window_size
+    for indx in 1:window_size_r
         msk = inp[:,indx] .== 1
         msk = CartesianIndices(msk)[msk]
         msk_ = similar(msk)
         for i in eachindex(msk)
-            msk_[i] = msk[i] + CartesianIndex(window_size*is)
+            msk_[i] = msk[i] + CartesianIndex(window_size_l*is)
         end 
-        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size*js] 
+        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size_r*js] 
         inp_[msk,indx] = reso
     end 
-    p = (data_[1:end-1, 1+window_size*is : window_size*(is+1)])*inp_ .+offset[1+window_size*js:window_size*(js+1)]'
-    pt.error = rmsd(data[2:end,1+window_size*js:window_size*(js+1)], p)
+    p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
+    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
 end 
 
+function evaluate_cheat(ptr, is, js, windowsize_l, windowsize_r)
+    r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
+    
+    ptr.error = -sum((ptr.dm .+ r).==2)
 
+end 
 
-function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM_ = DIM, PB_ = PB, starting_mutation_strength = 0.8, windsize_ = 32)
+p = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
+
+function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM_ = DIM, PB_ = PB, starting_mutation_strength = 0.8, windsize_l = 32, windsize_r = DIM)
     flush(stdout)
     println("starting...")
     @printf "λ = %d\n" λ
     if(SEED == false)
-        parent = Ind(sprand(Bool, windsize_, windsize_, PB),0)
+        parent = Ind(sprand(Bool, windsize_l, windsize_r, PB),0)
     else
         parent = SEED
     end
-    evaluate_sw(parent, DATASET, off_test, is, js, windsize_)
+    # evaluate_sw(parent, DATASET, off_test, is, js, windsize_l, windsize_r)
+    evaluate_cheat(parent, is, js, windsize_l, windsize_r)    
+
     children = Array{Ind}(undef, λ)
     nnz_hist = Array{Int}(undef, EpochNum)
     performance_hist = Array{Float64}(undef, EpochNum)
@@ -668,11 +682,13 @@ function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, D
         @printf "ms is %.2f \n" ms
         @printf "unchanged_counter is %d \n" unchanged_counter
         for i in 1:λ
-            children[i] = fastmut_window(parent, ms)
-            evaluate_sw(children[i], DATASET, off_test,is, js, window_size)
+            # children[i] = fastmut_window(parent, ms)
+            children[i] = mutate_flip(parent)
+            # evaluate_sw(children[i], DATASET, off_test,is, js, windsize_l, windsize_r)
+            evaluate_cheat(children[i], is, js, windsize_l, windsize_r)    
         end
-        # total = vcat(parent, children)
-        total = vcat(children)
+        total = vcat(parent, children)
+        # total = vcat(children)
         sort!(total)
 
         parent = total[1]
@@ -680,7 +696,7 @@ function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, D
         nnz_hist[counter] = nnz(parent.dm)
 
         if(unchanged_counter == 0 || unchanged_counter == -1)
-            t = plot(plotSol_window(parent, is, js, window_size), title = "epoch number "*string(counter))
+            t = plot(plotSol_window(parent, is, js, windsize_l, windsize_r), title = "epoch number "*string(counter))
             display(t)
         end 
 
@@ -715,44 +731,32 @@ end
 
 
 
-p = Ind(sprand(Bool, window_size, window_size, PB), 0 )
+# p = Ind(sprand(Bool, window_size, window_size, PB), 0 )
 
-ES_sliding(EpochNum= EpochNum_p, λ = λ_, DATASET = data_test, DIM_ = DIM, PB_ = PB, starting_mutation_strength = sms, windsize_ = window_size)
-# p = ES(DATASET = data_test, λ = λ_, PB = PB, EpochNum = EpochNum_p, starting_mutation_strength = sms)
-# evaluate(p2, data_test, off_test)
-# p = p[1][1]
+# ES_sliding(is = is_, js = js_, EpochNum= EpochNum_p, λ = λ_, DATASET = data_test, DIM_ = DIM, PB_ = PB, starting_mutation_strength = sms, windsize_l = window_size_l, windsize_r = window_size_r)
 
+tt = nnz(r_)
+h = zeros(size(1:tt))
+for idx in 1:tt
+    w = idx
+    println(idx)
+    tc = sample(findall(!iszero, r_), w, replace = false)
+    pt = Ind(spzeros(Bool, window_size_l, window_size_r), 0 )
+    rt = pt.dm
+    rt[tc] .= 1
+    for i in 1:tt-w
+        i, j = rand(1:window_size_l), rand(1:window_size_r)
+        while((i,j) in findnz(pt.dm))
+            i, j = rand(1:window_size_l), rand(1:window_size_r)
+        end 
+        pt.dm[i,j] = 1
+    end 
+    # plotSol_window(pt, 0, 0, window_size_l, window_size_r)
+    h[idx] = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
+end 
 
+plot(1:tt, h)
 
-# evaluate(p[1], data_test, off_test)
-# p = [p]
-# s = calculate(p[1], data_test, off_test)
-# s2 = calculate(p2, data_test, off_test)
-# pl = plot(1:vc, data_test[1:vc, 1:10], legend = false, seriestype =:path, linestyle=:dash)
-# plot(1:vc, vcat(data_test[1,:]',s)[1:vc, 1:10], seriestype =:path, linestyle=:dash)
-# plot!(1:vc, vcat(data_test[1,:]',s2)[1:vc, 1:10], seriestype =:path, linestyle=:dash)
-
-# for i in 1:DIM
-#     println(i, ": ",evaluate_gene(p2,data_test,off_test,i)) 
-# end 
-
-
-
-# outdirid_p = string(rand(collect(1:999999)))
-# outpath_p = joinpath(pwd(),"data", outdirid_p)
-# mkdir(outpath_p)
-# println(outpath_p)
-
-# open("data_ids.txt", "a") do file
-#     write(file, outdirid_p*"\n")
-# end
-
-# ans = "Dim is: " * string(DIM)*"\nTime is: " *string(TIMING) *"\nEpochNum is :" *string(EpochNum_p) *"\nParentSize is :" *string(ParentSize_p) *"\nChildrenSize is :" *string(γ_p*2)
-
-# open(joinpath(outpath_p, "description.txt"), "w") do file
-#     write(file, ans)
-# end
-
-# for i in 1:10
-#     Run(out_bool = true, outpath = outpath_p, EpochNum = EpochNum_p, runid = i )
-# end 
+pt = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
+xd = evaluate_sw(p, data_test, off_test, 0, 0, window_size_l, window_size_r)
+hline!([xd, xd])
