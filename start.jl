@@ -1,3 +1,6 @@
 # include("./dependancies.jl")
 include("./parameters.jl")
 include("./ES.jl")
+# include("./solution_analysis.jl")
+# include("test_generation.jl")
+include("./run.jl")

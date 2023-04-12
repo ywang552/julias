@@ -1,8 +1,6 @@
 fp_ = pwd()
 fn = "RUVrNormalizedCounts.txt"
 fp = joinpath(fp_, fn)
-# TIMING = 17
-# DIM = 128
 f = CSV.read(fp, DataFrame, delim = '\t', header = 1)
 f = f[:, 2:end]
 p = 0
@@ -51,6 +49,8 @@ r3 = log.(r3.+1)
 ub = maximum(r3)
 lb = minimum(r3)
 r3N = r3./(ub-lb)
+
+
 
 function LargeImpactDetection(AIn, vari)
     A = AIn[1:end-1,:]
@@ -289,16 +289,6 @@ function mut_mut(ptr)
     return Ind(nr,0) 
 end 
 
-
-## hyperparameters
-# ParentSize = 10
-# LRStrength = 0.1
-# γ = 25
-DATASET_ = r3
-r3_mod = DATASET_[1:TIMING, 1:DIM]
-# EpochNum_p = 1000
-# ParentSize_p = 16
-# γ_p = 128
 function Run(;out_bool = false, outpath = "", SEED = false, EpochNum = EpochNum_p, runid = -1,ParentSize = ParentSize_p, LRStrength = 0.1, γ = γ_p, DATASET = r3_mod, DIM = DIM)
     ### generate
     flush(stdout)
@@ -463,58 +453,6 @@ function ES(; SEED = false, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM = D
 end
 
 
-test_dim = DIM
-vc = 37
-timet_test = TIMING
-off_test = rand(Uniform(0, 10), 1,test_dim, )
-off_test
-reso = sprand(test_dim, test_dim,PB, n->rand(Uniform(-0.5,0.5),n)) 
-reso[diagind(reso)] .= 0
-r_ = spzeros(DIM,DIM)
-r_[reso.!=0] .= 1
-
-init_test = rand(1, test_dim) 
-init_test
-data_test = zeros(timet_test, test_dim)
-data_test[1,:] = init_test
-ubt = off_test.+0.5
-lbt = off_test.-0.5
-
-for i in 2:timet_test
-    data_test[i, :] = data_test[i-1,:]'*reso 
-end
-
-plot(1:vc, r3[1:vc, 1:10], legend = false)
-data_test = data_test.+off_test
-pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
-display(pl)
-@printf "reso size: %d\n" nnz(reso)
-map(x->x==1 ? RGB(0,1,0) : RGB(0,0,0), r_)
-
-# sleep(3)
-
-# I_, J_, K_ = findnz(reso)
-
-# Z = Array{Bool}(undef, size(K_,1))
-# Z.=1
-if(true)
-    a = 1
-elseif(false)
-    b= 1
-end 
-# inp = sparse(I_ ,J_, Z)
-# inp_ = spzeros(4867,4867)
-# d_ = data_test.-off_test
-# for indx in 1:test_dim
-#     msk = inp[:,indx].==1
-#     reso__ = (d_[1:end-1, msk] ) \(d_[2:end, indx] )
-#     inp_[msk,indx] = reso__
-# end 
-# data_test
-# p = (d_[1:end-1,:])*inp_ .+ off_test
-# rmsd(data_test[2:end,:], p)
-
-
 function evaluate(pt, data, offset)
     inp = pt.dm
     inp_ = spzeros(DIM,DIM)
@@ -530,14 +468,6 @@ function evaluate(pt, data, offset)
 end
 
 
-
-
-
-
-
-
-
-
 function calculate(pt, data, offset)
     inp = pt.dm
     inp_ = spzeros(DIM,DIM)
@@ -551,7 +481,6 @@ function calculate(pt, data, offset)
     p = (data[1:end-1,:])*inp_ .+ offset
     return p
 end
-
 
 function evaluate_gene(pt, data, offset, i)
     inp = pt.dm
@@ -627,10 +556,6 @@ function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
 end 
 
 
-p = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
-plotSol_window(p, 0, 0, window_size_l, window_size_r)
-
-
 function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     inp = pt.dm
     inp_ = spzeros(window_size_l,window_size_r)
@@ -656,8 +581,6 @@ function evaluate_cheat(ptr, is, js, windowsize_l, windowsize_r)
 
 end 
 
-p = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
-
 function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, DATASET = r3_mod, DIM_ = DIM, PB_ = PB, starting_mutation_strength = 0.8, windsize_l = 32, windsize_r = DIM)
     flush(stdout)
     println("starting...")
@@ -680,7 +603,7 @@ function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, D
     for counter in 1:EpochNum
         @printf "--------Current Epoch is %d------ \n" counter
         @printf "ms is %.2f \n" ms
-        @printf "unchanged_counter is %d \n" unchanged_counter
+        @printf "unchanged_counter is %d \n" unchanged_counter 
         for i in 1:λ
             # children[i] = fastmut_window(parent, ms)
             children[i] = mutate_flip(parent)
@@ -721,42 +644,30 @@ end
 
 
 
+function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r)
+
+    @printf "starting...\n"
+    @printf "(μ+λ) is (%d + %d) " μ  λ 
+
+    if(seeded)
+        parents = seed
+
+    else
+        parents = Array{Ind}(undef, μ)
+        for i in 1:μ
+            parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
+        end
+    end  
+    
+    evaluate_cheat.(parents, is, js, windrow, windcol)
+
+    
 
 
 
-
-
-
-
-
-
-
-# p = Ind(sprand(Bool, window_size, window_size, PB), 0 )
-
-# ES_sliding(is = is_, js = js_, EpochNum= EpochNum_p, λ = λ_, DATASET = data_test, DIM_ = DIM, PB_ = PB, starting_mutation_strength = sms, windsize_l = window_size_l, windsize_r = window_size_r)
-
-tt = nnz(r_)
-h = zeros(size(1:tt))
-for idx in 1:tt
-    w = idx
-    println(idx)
-    tc = sample(findall(!iszero, r_), w, replace = false)
-    pt = Ind(spzeros(Bool, window_size_l, window_size_r), 0 )
-    rt = pt.dm
-    rt[tc] .= 1
-    for i in 1:tt-w
-        i, j = rand(1:window_size_l), rand(1:window_size_r)
-        while((i,j) in findnz(pt.dm))
-            i, j = rand(1:window_size_l), rand(1:window_size_r)
-        end 
-        pt.dm[i,j] = 1
-    end 
-    # plotSol_window(pt, 0, 0, window_size_l, window_size_r)
-    h[idx] = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
 end 
 
-plot(1:tt, h)
 
-pt = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
-xd = evaluate_sw(p, data_test, off_test, 0, 0, window_size_l, window_size_r)
-hline!([xd, xd])
+
+DATASET_ = r3
+r3_mod = DATASET_[1:TIMING, 1:DIM]
