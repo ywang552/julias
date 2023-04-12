@@ -3,7 +3,7 @@ tt = nnz(r_)
 
 list = findall(!iszero, r_)
 list = shuffle(list)
-total_trials = 250
+total_trials = 100
 h = Array{Float64}(undef, total_trials, 1000)
 
 
@@ -34,7 +34,7 @@ end
 
 c=size(tt-1500:20:tt)[1]
 
-histogram(1:total_trials, h[:,c])
+histogram(1:total_trials, h[:,1])
 
 
 
@@ -62,6 +62,6 @@ histogram(1:total_trials, h[:,c])
 # plot(1:tt, h)
 
 # pt = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
-# xd = evaluate_sw(p, data_test, off_test, 0, 0, window_size_l, window_size_r)
+# xd = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
 # hline!([xd, xd])
 

@@ -87,6 +87,9 @@ function Base.isless(x::Ind, y::Ind)
     end
 end
 
+function Ind(x::Ind)
+    return Ind(x.dm, x.error)
+end 
 
 
 function LRank(num::Int64, p::Float64)
@@ -644,10 +647,10 @@ end
 
 
 
-function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r)
+function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_)
 
     @printf "starting...\n"
-    @printf "(μ+λ) is (%d + %d) " μ  λ 
+    @printf "(μ+λ) is (%d + %d) \n" μ  λ 
 
     if(seeded)
         parents = seed
@@ -656,17 +659,63 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         parents = Array{Ind}(undef, μ)
         for i in 1:μ
             parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
+            evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
         end
     end  
     
-    evaluate_cheat.(parents, is, js, windrow, windcol)
-
+    # evaluate_cheat.(parents, is, js, windrow, windcol)
     
+    sort!(parents, rev = true)
+
+    children = Array{Ind}(undef, λ)
+    nnz_hist = zeros(epochNum)
+
+    performance = zeros(epochNum, μ)
+    for currentEpoch in 1:epochNum
+        @printf "-------current epoch is %d-------\n" currentEpoch
+        for indx in 1:λ
+            children[indx] = fastmut_window(parents[LRank(μ, p)], ms)
+            # evaluate_cheat(children[indx], is, js, windrow, windcol)
+            evaluate_sw(children[indx], DATASET, off_test, is, js, windrow, windcol)
+        end 
+        total_population = vcat(parents, children)
+        sort!(total_population, rev = true)
+        msk = Array{Int}(undef, μ)
+        msk[1] = size(total_population,1)
+        for indx in 2:μ
+            z = LRank(λ+μ, 0.01)
+            while(z in msk)
+                z = LRank(λ+μ, 0.01)
+            end 
+            msk[indx] = z 
+        end 
+        println(msk)
+        parents = total_population[msk]
+        # parents = total_population[end-μ+1:end]
+        tmp = map(x->x.error, parents)
+        sort!(parents, rev = true)
+        performance[currentEpoch, :] = tmp
+        @printf "best error is: %.4f\n" performance[currentEpoch, end]
+    end 
 
 
 
 end 
 
+# h = zeros(16)
+
+# for i in 1:16
+#     println(i)
+#     c = 1
+#     z = LRank(16+2048,0.01)
+#     while(z in h)
+#         z = LRank(16, 0.01)
+#     end
+#     h[i] = z
+
+# end
+
+# histogram(h)
 
 
 DATASET_ = r3
