@@ -1,19 +1,21 @@
-DIM = 128
+DIM = 32
 TIMING = 37
 EpochNum_p = 100
-ParentSize_p = 64
-γ_p = 1024
-PB = 0.095
-PB_ = 0.095 
+ParentSize_p = 10
+γ_p = 50
+PB = 0.095*4
+PB_ = 0.095 *4
 μ_ = 16
 λ_ = Int(γ_p*2)
 sms=0.1
 window_size_l = 32
 window_size_r = DIM
+zone_size = window_size_l*window_size_r*PB*0.3
+inheretRate_ = 0.95
 is_ = 0
 js_ = 0 
 p_ = 0.9
-ms_ = 0.5
+ms_ = 0.8
 
 
 

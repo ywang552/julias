@@ -174,16 +174,24 @@ function mutate_permutation_ES(pt, mutation_strength = 0.1)
     return reso
 end
 
-function fastmut(pt, ms, ub, lb)
+
+# function fastmut(pt, ms, ub, lb)
+#     local nr
+#     cond = true
+#     while(cond)
+#         a = pt.dm .&& rand(DIM, DIM).<(1-ms)
+#         nr = dropzeros(a.|| rand(DIM,DIM).<PB*ms/((1-PB)+PB*ms))
+#         if(nnz(nr) < ub && nnz(nr)> lb)
+#             cond = false
+#         end 
+#     end 
+#     return Ind(nr,0)
+# end 
+
+function fastmut(pt, ms)
     local nr
-    cond = true
-    while(cond)
-        a = pt.dm .&& rand(DIM, DIM).<(1-ms)
-        nr = dropzeros(a.|| rand(DIM,DIM).<PB*ms/((1-PB)+PB*ms))
-        if(nnz(nr) < ub && nnz(nr)> lb)
-            cond = false
-        end 
-    end 
+    a = pt.dm .&& rand(DIM, DIM).<(1-ms)
+    nr = dropzeros(a.|| rand(DIM,DIM).<PB*ms/((1-PB)+PB*ms))
     return Ind(nr,0)
 end 
 
@@ -255,7 +263,7 @@ end
 
 function mut_mut(ptr)
     p = ptr.dm
-    nr = spzeros(DIM, DIM)
+    nr = spzeros(Bool, DIM, DIM)
     mut = 0.1
     colCounter = 1
     for col in eachcol(p)
@@ -577,6 +585,25 @@ function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
 end 
 
+
+function evaluate_sw_printf(pt, data, offset, is, js, window_size_l, window_size_r)
+    inp = pt.dm
+    inp_ = spzeros(window_size_l,window_size_r)
+    data_ = data.-offset
+    for indx in 1:window_size_r
+        msk = inp[:,indx] .== 1
+        msk = CartesianIndices(msk)[msk]
+        msk_ = similar(msk)
+        for i in eachindex(msk)
+            msk_[i] = msk[i] + CartesianIndex(window_size_l*is)
+        end 
+        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size_r*js] 
+        inp_[msk,indx] = reso
+    end 
+    p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
+    return rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
+end 
+
 function evaluate_cheat(ptr, is, js, windowsize_l, windowsize_r)
     r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
     
@@ -645,13 +672,63 @@ function ES_sliding(; SEED = false, is = 0, js = 0, EpochNum= 2500, λ = 1024, D
     return parent
 end 
 
+function distance(x, y, zs)
+    t = sum(x.dm .|| y.dm) - sum(x.dm .&& y.dm)
+    if(t < zs)
+        return 1 - (t)/zs
+    else
+        return 0 
+    end 
+end
+
+p1 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
+p2 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
+
+function crossover_withMutation(ptr1, ptr2, windl, windr, inheretRate)
+    r = spzeros(Bool,windl, windr)
+    genePool_p1 = findall(!iszero, ptr1.dm)
+    genePool_p2 = findall(!iszero, ptr2.dm)
+    genePool_total = vcat(genePool_p1, genePool_p2)
+    geneNum_pL = minimum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    geneNum_pR = maximum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    geneNum_childTotal = sample(geneNum_pL:geneNum_pR)
+    geneNum_childInhereted = Int(floor(geneNum_childTotal*inheretRate))
+    genePool_childInhereted = unique(sample(genePool_total, geneNum_childInhereted, replace = false))
+    tmp = size(genePool_childInhereted,1)
+    if(tmp < geneNum_childInhereted)
+        for i in 1:10
+            genePool_childInhereted = unique(vcat(genePool_childInhereted, sample(genePool_total, geneNum_childInhereted - tmp)))
+            tmp = size(genePool_childInhereted, 1)
+            if(tmp >= geneNum_childInhereted)
+                break
+            end 
+        end 
+    end 
+
+    r[genePool_childInhereted] .= 1
+
+    for i in 1:geneNum_childTotal-geneNum_childInhereted
+        x = sample(1:windl)
+        y = sample(1:windr)
+        c = 1
+        while((r[x,y] == 1 ||  x==y) || c < 100)
+            x = sample(1:windl)
+            y = sample(1:windr)
+            c = c+1
+        end 
+        r[x,y] = 1
+    end
+    dropzeros!(r)
+    return Ind(r, 0)
+end 
 
 
-function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_)
+function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_)
+    zone_size = windrow*windcol*PB*0.3
 
     @printf "starting...\n"
     @printf "(μ+λ) is (%d + %d) \n" μ  λ 
-
+    @printf "the ms is %.2f\n" ms
     if(seeded)
         parents = seed
 
@@ -659,6 +736,9 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         parents = Array{Ind}(undef, μ)
         for i in 1:μ
             parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
+            parents[i].dm[diagind(parents[i].dm)] .=0
+            dropzeros!(parents[i].dm)
+
             evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
         end
     end  
@@ -674,48 +754,57 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
     for currentEpoch in 1:epochNum
         @printf "-------current epoch is %d-------\n" currentEpoch
         for indx in 1:λ
-            children[indx] = fastmut_window(parents[LRank(μ, p)], ms)
+            children[indx] = crossover_withMutation(parents[LRank(μ, p)], parents[LRank(μ, p)], windrow, windcol, inheretRate)
+            
+            # children[indx] = parents[LRank(μ, p)]
+            # children[indx] = fastmut(parents[LRank(μ, p)], ms)
+
             # evaluate_cheat(children[indx], is, js, windrow, windcol)
-            evaluate_sw(children[indx], DATASET, off_test, is, js, windrow, windcol)
+            # evaluate_sw(children[indx], DATASET, off_test, is, js, windrow, windcol)
         end 
         total_population = vcat(parents, children)
-        sort!(total_population, rev = true)
-        msk = Array{Int}(undef, μ)
-        msk[1] = size(total_population,1)
-        for indx in 2:μ
-            z = LRank(λ+μ, 0.01)
-            while(z in msk)
-                z = LRank(λ+μ, 0.01)
-            end 
-            msk[indx] = z 
+        for i in 1:λ+μ
+            t = sum(distance.(Ref(total_population[i]), total_population, zone_size))
+            evaluate_sw(total_population[i], DATASET, off_test, is, js, windrow, windcol)
+
+            total_population[i].error = total_population[i].error*t
         end 
-        println(msk)
-        parents = total_population[msk]
-        # parents = total_population[end-μ+1:end]
+        sort!(total_population, rev = true)
+
+        # msk = Array{Int}(undef, μ)
+        # msk[1] = size(total_population,1)
+        # for indx in 2:μ
+        #     z = LRank(λ+μ, 0.01)
+        #     while(z in msk)
+        #         z = LRank(λ+μ, 0.01)
+        #     end 
+        #     msk[indx] = z 
+        # end 
+        # println(msk)
+        # parents = total_population[msk]
+        parents = total_population[end-μ+1:end]
+        t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+        display(t)
+        println(distance.(Ref(parents[end]), parents, zone_size))
         tmp = map(x->x.error, parents)
-        sort!(parents, rev = true)
         performance[currentEpoch, :] = tmp
-        @printf "best error is: %.4f\n" performance[currentEpoch, end]
+        nnz_hist[currentEpoch] = nnz(parents[end].dm)
+
+        pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
+        @printf "nnz is %d\n" nnz_hist[currentEpoch]  
+        @printf "best error is: %.4f\n" pp
     end 
-
-
-
 end 
 
-# h = zeros(16)
 
-# for i in 1:16
-#     println(i)
-#     c = 1
-#     z = LRank(16+2048,0.01)
-#     while(z in h)
-#         z = LRank(16, 0.01)
-#     end
-#     h[i] = z
 
-# end
+p1 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
+p2 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
 
-# histogram(h)
+
+
+
+
 
 
 DATASET_ = r3
