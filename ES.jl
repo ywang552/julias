@@ -148,7 +148,7 @@ end
 
 function mutate_flip(pt)
     child = pt.dm
-    tm = sprand(Bool, DIM, DIM, 1e-8)
+    tm = sprand(Bool, window_size_l, window_size_r, 1e-8)
     pt.dm = xor.(child,  tm)
     return pt 
 end
@@ -567,6 +567,20 @@ function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
 end 
 
 
+function green_window(ptr, is, js, windowsize_l, windowsize_r)
+    m = ptr.dm
+
+    c1 = 0
+    r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
+    for i in eachindex(r)
+        if(m[i] == 1 && r[i] == 1)
+            c1 = c1+1
+        end 
+    end 
+    return c1
+end 
+
+
 function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     inp = pt.dm
     inp_ = spzeros(window_size_l,window_size_r)
@@ -607,7 +621,14 @@ end
 function evaluate_cheat(ptr, is, js, windowsize_l, windowsize_r)
     r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
     
-    ptr.error = -sum((ptr.dm .+ r).==2)
+    ptr.error = sum(xor.(ptr.dm, r) )
+
+end 
+
+function evaluate_cheat_print(ptr, is, js, windowsize_l, windowsize_r)
+    r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
+    
+    return sum(xor.(ptr.dm, r) )
 
 end 
 
@@ -704,7 +725,6 @@ function crossover_withMutation(ptr1, ptr2, windl, windr, inheretRate)
             end 
         end 
     end 
-
     r[genePool_childInhereted] .= 1
 
     for i in 1:geneNum_childTotal-geneNum_childInhereted
@@ -722,10 +742,50 @@ function crossover_withMutation(ptr1, ptr2, windl, windr, inheretRate)
     return Ind(r, 0)
 end 
 
+function crossover_deterministic(ptr1, ptr2, windl, windr, inheretRate)
+    r = ptr1.dm .&& ptr2.dm
+    r2 = xor.(ptr1.dm, ptr2.dm)
 
-function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_)
-    zone_size = windrow*windcol*PB*0.3
+    mini = minimum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    maxi = maximum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    geneNum_children = sample(mini:maxi) - nnz(r)
+    gene_setTotal = findall(!iszero, r2)
+    shuffle!(gene_setTotal)
+    msk = gene_setTotal[1:geneNum_children]
+    r[msk].=1
 
+    dropzeros!(r)
+    return Ind(r,0)
+end 
+
+
+function crossover_deterministic_(ptr1, ptr2, windl, windr, inheretRate)
+    r = ptr1.dm .&& ptr2.dm
+    r2 = xor.(ptr1.dm, ptr2.dm)
+    if(sum(r2) !=0)
+        common_num = nnz(r)
+        toIgnore = Int(floor(common_num*0.05))
+        common_set = findall(!iszero, r)
+        msk = sample(common_set, toIgnore, replace = false)
+        r[msk].=0
+        dropzeros!(r)
+    end 
+
+    mini = minimum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    maxi = maximum([nnz(ptr1.dm), nnz(ptr2.dm)])
+    gene_setTotal = findall(!iszero, r2)
+    geneNum_children = minimum([maximum([sample(mini:maxi) - nnz(r), 0]), size(gene_setTotal,1)])
+    shuffle!(gene_setTotal)
+    msk = gene_setTotal[1:geneNum_children]
+    r[msk].=1
+
+    dropzeros!(r)
+    return Ind(r,0)
+end 
+
+
+function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_, eli_num = eli_num_, restart_num = restart_num_)
+    zone_size = windrow*windcol*PB*0.2
     @printf "starting...\n"
     @printf "(μ+λ) is (%d + %d) \n" μ  λ 
     @printf "the ms is %.2f\n" ms
@@ -738,61 +798,105 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
             parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
             parents[i].dm[diagind(parents[i].dm)] .=0
             dropzeros!(parents[i].dm)
-
-            evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
+            evaluate_cheat(parents[i], is, js, windrow, windcol)
+            # evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
         end
     end  
-    
-    # evaluate_cheat.(parents, is, js, windrow, windcol)
-    
+        
     sort!(parents, rev = true)
 
     children = Array{Ind}(undef, λ)
     nnz_hist = zeros(epochNum)
 
     performance = zeros(epochNum, μ)
+    performance_ = zeros(epochNum)
+    convergence = zeros(epochNum)
+    greenDot_Num = zeros(epochNum)
     for currentEpoch in 1:epochNum
         @printf "-------current epoch is %d-------\n" currentEpoch
-        for indx in 1:λ
-            children[indx] = crossover_withMutation(parents[LRank(μ, p)], parents[LRank(μ, p)], windrow, windcol, inheretRate)
-            
+        for indx in 1:(λ-eli_num)
+            if(rand()<0.95-0.95*currentEpoch/epochNum)
+                a = LRank(μ, p)
+                b = LRank(μ, p)
+                while(a==b)
+                    b = LRank(μ, p)
+                end 
+
+                children[indx] = crossover_deterministic(parents[a], parents[b], windrow, windcol, 1)
+
+            else
+                children[indx] = parents[LRank(μ, p)]
+            end
+        
+            # children[indx] = crossover_withMutation(parents[LRank(μ, p)], parents[LRank(μ, p)], windrow, windcol, 1)
             # children[indx] = parents[LRank(μ, p)]
             # children[indx] = fastmut(parents[LRank(μ, p)], ms)
-
             # evaluate_cheat(children[indx], is, js, windrow, windcol)
             # evaluate_sw(children[indx], DATASET, off_test, is, js, windrow, windcol)
         end 
-        total_population = vcat(parents, children)
-        for i in 1:λ+μ
-            t = sum(distance.(Ref(total_population[i]), total_population, zone_size))
-            evaluate_sw(total_population[i], DATASET, off_test, is, js, windrow, windcol)
 
-            total_population[i].error = total_population[i].error*t
+        for indx in 1:(λ-eli_num)
+            if(rand() < 0.001+0.999*currentEpoch/epochNum)
+                children[indx] = mutate_flip(children[indx])
+            end
+        end
+        children[end-eli_num+1:end] = parents[end-eli_num+1:end]
+        # total_population = vcat(parents, children)
+        for i in 1:λ
+            t = sum(distance.(Ref(children[i]), children, zone_size))
+            t = logistic(t) + 0.5
+            evaluate_cheat(children[i], is, js, windrow, windcol)
+
+            # evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
+            if(t != 1 && i == (λ))
+                println(t)
+            end 
+            children[i].error = children[i].error*t
         end 
-        sort!(total_population, rev = true)
-
-        # msk = Array{Int}(undef, μ)
-        # msk[1] = size(total_population,1)
-        # for indx in 2:μ
-        #     z = LRank(λ+μ, 0.01)
-        #     while(z in msk)
-        #         z = LRank(λ+μ, 0.01)
-        #     end 
-        #     msk[indx] = z 
-        # end 
-        # println(msk)
-        # parents = total_population[msk]
-        parents = total_population[end-μ+1:end]
-        t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
-        display(t)
-        println(distance.(Ref(parents[end]), parents, zone_size))
+        sort!(children, rev = true)
+        parents = children[end-μ+1:end]
+        
+        
+        convergence[currentEpoch] = sum(distance.(Ref(parents[end]), parents, zone_size))
         tmp = map(x->x.error, parents)
         performance[currentEpoch, :] = tmp
         nnz_hist[currentEpoch] = nnz(parents[end].dm)
+        
+        pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
 
-        pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
+        # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
+        performance_[currentEpoch] = pp
+        greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
+        
         @printf "nnz is %d\n" nnz_hist[currentEpoch]  
         @printf "best error is: %.4f\n" pp
+        @printf "best error is: %.4f\n" performance[currentEpoch, end]
+        # println(distance.(Ref(parents[end]), parents, zone_size))
+
+        if(currentEpoch%10 == 0)
+            plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, label = false)
+            plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, label = false)
+            plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false)
+            hline!([0.8*μ 0.8*μ], label = false)
+            plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false)
+            plt4 = plot(plt1, plt2, plt3, layout =(3,1))
+            display(plt4)
+        end 
+        if(convergence[currentEpoch] > 0.8*μ)
+            println("!!!RESTART!!!")
+            msk = sample(1:μ, restart_num, replace = false)
+            for i in msk
+                parents[i] = Ind(sprand(Bool, windrow, windcol, PB),0)
+                evaluate_cheat(parents[i], is, js, windrow, windcol)
+                # evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
+            end 
+        end 
+
+
+        t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+        display(t)
+
+
     end 
 end 
 
@@ -803,9 +907,16 @@ p2 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
 
 
 
-
-
+function roulette_wheel_secltion(population)
+    population_fitness = sum([chromosome.error for chromosome in population])
+    chromosome_probabilities = [chromosome.error/population_fitness for chromosome in population]
+    chromosome_probabilities = 1 .- chromosome_probabilities
+    sample(population, Weights(chromosome_probabilities), 2, replace = false)
+end 
 
 
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
+
+
+

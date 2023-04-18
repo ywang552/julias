@@ -4,7 +4,7 @@ timet_test = TIMING
 off_test = rand(Uniform(0, 10), 1,test_dim, )
 reso = sprand(test_dim, test_dim,PB, n->rand(Uniform(-0.5,0.5),n)) 
 reso[diagind(reso)] .= 0
-r_ = spzeros(DIM,DIM)
+r_ = spzeros(Bool, DIM,DIM)
 r_[reso.!=0] .= 1
 
 init_test = rand(1, test_dim) 
@@ -21,6 +21,6 @@ end
 data_test = data_test.+off_test
 pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
 display(pl)
-sleep(5)
+sleep(2)
 @printf "reso size: %d\n" nnz(reso)
 
