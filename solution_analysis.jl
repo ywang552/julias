@@ -39,29 +39,32 @@ histogram(1:total_trials, h[:,1])
 
 
 
+# calculate fitness, the number of connection from 1: total 
+# number of connections, the rest is filled with random 
+# connections 
 
-# h = zeros(size(1:tt))
-# for idx in 1:tt
-#     w = idx
-#     println(idx)
-#     tc = sample(findall(!iszero, r_), w, replace = false)
-#     pt = Ind(spzeros(Bool, window_size_l, window_size_r), 0 )
-#     rt = pt.dm
-#     rt[tc] .= 1
-#     for i in 1:tt-w
-#         i, j = rand(1:window_size_l), rand(1:window_size_r)
-#         while((i,j) in findnz(pt.dm))
-#             i, j = rand(1:window_size_l), rand(1:window_size_r)
-#         end 
-#         pt.dm[i,j] = 1
-#     end 
-#     # plotSol_window(pt, 0, 0, window_size_l, window_size_r)
-#     h[idx] = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
-# end 
+h = zeros(size(1:tt))
+for idx in 1:tt
+    w = idx
+    println(idx)
+    tc = sample(findall(!iszero, r_), w, replace = false)
+    pt = Ind(spzeros(Bool, window_size_l, window_size_r), 0 )
+    rt = pt.dm
+    rt[tc] .= 1
+    for i in 1:tt-w
+        i, j = rand(1:window_size_l), rand(1:window_size_r)
+        while((i,j) in findnz(pt.dm))
+            i, j = rand(1:window_size_l), rand(1:window_size_r)
+        end 
+        pt.dm[i,j] = 1
+    end 
+    # plotSol_window(pt, 0, 0, window_size_l, window_size_r)
+    h[idx] = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
+end 
 
-# plot(1:tt, h)
+plot(1:tt, h)
 
-# pt = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
-# xd = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
-# hline!([xd, xd])
+pt = Ind(sprand(Bool, window_size_l, window_size_r, PB), 0 )
+xd = evaluate_sw(pt, data_test, off_test, 0, 0, window_size_l, window_size_r)
+hline!([xd, xd])
 

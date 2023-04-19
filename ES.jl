@@ -696,7 +696,7 @@ end
 function distance(x, y, zs)
     t = sum(x.dm .|| y.dm) - sum(x.dm .&& y.dm)
     if(t < zs)
-        return 1 - (t)/zs
+        return 1 - ((t)/zs)^2
     else
         return 0 
     end 
@@ -843,15 +843,16 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         children[end-eli_num+1:end] = parents[end-eli_num+1:end]
         # total_population = vcat(parents, children)
         for i in 1:λ
-            t = sum(distance.(Ref(children[i]), children, zone_size))
-            t = logistic(t) + 0.5
-            evaluate_cheat(children[i], is, js, windrow, windcol)
+            # t = sum(distance.(Ref(children[i]), children, zone_size))
+            # t = logistic(t) + 0.5
 
+            evaluate_cheat(children[i], is, js, windrow, windcol)
             # evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
-            if(t != 1 && i == (λ))
-                println(t)
-            end 
-            children[i].error = children[i].error*t
+
+            # if(t != 1 && i == (λ))
+            #     println(t)
+            # end 
+            # children[i].error = children[i].error*t
         end 
         sort!(children, rev = true)
         parents = children[end-μ+1:end]
@@ -862,9 +863,9 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         performance[currentEpoch, :] = tmp
         nnz_hist[currentEpoch] = nnz(parents[end].dm)
         
-        pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
-
-        # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
+        
+        # pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
+        pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
         performance_[currentEpoch] = pp
         greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
         
@@ -874,11 +875,11 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         # println(distance.(Ref(parents[end]), parents, zone_size))
 
         if(currentEpoch%10 == 0)
-            plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, label = false)
-            plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, label = false)
-            plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false)
-            hline!([0.8*μ 0.8*μ], label = false)
-            plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false)
+            plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
+            plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
+            plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
+            hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
+            plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
             plt4 = plot(plt1, plt2, plt3, layout =(3,1))
             display(plt4)
         end 
@@ -893,11 +894,11 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         end 
 
 
-        t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
-        display(t)
-
-
+        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+        # display(t)
     end 
+
+    return [performance, performance_, convergence, greenDot_Num] 
 end 
 
 
