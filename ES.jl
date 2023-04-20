@@ -560,10 +560,40 @@ function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
     t1 = "c1:" *string(c1)
     t2 = "c2:" *string(c2)
     t3 = "c3:" *string(c3)
-    res = plot(a, axis = nothing, annotations = (windowsize_r, 0, Plots.text(t1, :left)))
+    res = plot(a, axis = nothing, annotations = (windowsize_r, 1, Plots.text(t1, :left)))
     annotate!(windowsize_r, 0.3 * window_size_l, Plots.text(t2, :left))
     annotate!(windowsize_r, 0.6 * window_size_l, Plots.text(t3, :left))
     return res
+end 
+
+
+function calSol_window(ptr, is, js, windowsize_l, windowsize_r)
+    m = ptr.dm
+
+    c1 = 0
+    c2 = 0 
+    c3 = 0
+    r = r_[1+is*windowsize_l:(is+1)*windowsize_l, 1+js*windowsize_r: (js+1)*windowsize_r]
+    a = map(x->RGB(0,0,0), m)
+    for i in eachindex(r)
+        if(m[i] == 1 && r[i] == 1)
+   
+            a[i]=RGB(0,1,0)
+            c1 = c1+1
+
+        end 
+        if(m[i] == 1 && r[i] == 0)
+            if(i[1] != i[2])
+                a[i]=RGB(1,0,0)
+                c2 = c2+1
+            end
+        end 
+        if(m[i] == 0 && r[i] == 1 )
+            a[i] = RGB(0.571945,0.42736,0.548254)
+            c3 = c3+1
+        end 
+    end 
+    return c1, c2
 end 
 
 
@@ -786,9 +816,10 @@ end
 
 function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_, eli_num = eli_num_, restart_num = restart_num_)
     zone_size = windrow*windcol*PB*0.2
-    @printf "starting...\n"
-    @printf "(μ+λ) is (%d + %d) \n" μ  λ 
-    @printf "the ms is %.2f\n" ms
+    # @printf "starting...\n"
+    # @printf "(μ+λ) is (%d + %d) \n" μ  λ 
+    # @printf "the ms is %.2f\n" ms
+    rv = true     
     if(seeded)
         parents = seed
 
@@ -798,12 +829,12 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
             parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
             parents[i].dm[diagind(parents[i].dm)] .=0
             dropzeros!(parents[i].dm)
-            evaluate_cheat(parents[i], is, js, windrow, windcol)
-            # evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
+            # evaluate_cheat(parents[i], is, js, windrow, windcol)
+            evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
         end
     end  
         
-    sort!(parents, rev = true)
+    sort!(parents, rev = rv)
 
     children = Array{Ind}(undef, λ)
     nnz_hist = zeros(epochNum)
@@ -813,7 +844,7 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
     convergence = zeros(epochNum)
     greenDot_Num = zeros(epochNum)
     for currentEpoch in 1:epochNum
-        @printf "-------current epoch is %d-------\n" currentEpoch
+        # @printf "-------current epoch is %d-------\n" currentEpoch
         for indx in 1:(λ-eli_num)
             if(rand()<0.95-0.95*currentEpoch/epochNum)
                 a = LRank(μ, p)
@@ -841,20 +872,21 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
             end
         end
         children[end-eli_num+1:end] = parents[end-eli_num+1:end]
+        # children[end-eli_num+1:end] = parents[1:eli_num]
         # total_population = vcat(parents, children)
         for i in 1:λ
             # t = sum(distance.(Ref(children[i]), children, zone_size))
             # t = logistic(t) + 0.5
 
-            evaluate_cheat(children[i], is, js, windrow, windcol)
-            # evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
+            # evaluate_cheat(children[i], is, js, windrow, windcol)
+            evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
 
             # if(t != 1 && i == (λ))
             #     println(t)
             # end 
             # children[i].error = children[i].error*t
         end 
-        sort!(children, rev = true)
+        sort!(children, rev = rv)
         parents = children[end-μ+1:end]
         
         
@@ -865,40 +897,47 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         
         
         # pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
-        pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
-        performance_[currentEpoch] = pp
-        greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
+        # # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
+        # performance_[currentEpoch] = pp
+        # greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
         
-        @printf "nnz is %d\n" nnz_hist[currentEpoch]  
-        @printf "best error is: %.4f\n" pp
-        @printf "best error is: %.4f\n" performance[currentEpoch, end]
+        
         # println(distance.(Ref(parents[end]), parents, zone_size))
-
-        if(currentEpoch%10 == 0)
-            plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
-            plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
-            plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
-            hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
-            plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
-            plt4 = plot(plt1, plt2, plt3, layout =(3,1))
-            display(plt4)
+        
+        # @printf "nnz is %d\n" nnz_hist[currentEpoch]  
+        # @printf "best error is: %.4f\n" pp
+        # @printf "best error is: %.4f\n" performance[currentEpoch, end]
+        # if(currentEpoch%10 == 0)
+        #     plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
+        #     # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
+        #     plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
+        #     hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
+        #     plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
+        #     plt4 = plot(plt1, plt2, plt3, layout =(3,1))
+        #     display(plt4)
+        # end 
+        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+        # display(t)
+        if(currentEpoch%50==0)
+            println(currentEpoch,"...")
         end 
+
         if(convergence[currentEpoch] > 0.8*μ)
-            println("!!!RESTART!!!")
+            # println("!!!RESTART!!!")
             msk = sample(1:μ, restart_num, replace = false)
             for i in msk
                 parents[i] = Ind(sprand(Bool, windrow, windcol, PB),0)
-                evaluate_cheat(parents[i], is, js, windrow, windcol)
-                # evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
+                # evaluate_cheat(parents[i], is, js, windrow, windcol)
+                evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
             end 
         end 
 
 
-        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
-        # display(t)
+
     end 
 
-    return [performance, performance_, convergence, greenDot_Num] 
+    # return [performance, performance_, convergence, greenDot_Num] 
+    return parents
 end 
 
 
