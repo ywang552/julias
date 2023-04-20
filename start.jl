@@ -6,6 +6,7 @@ include("./ES.jl")
 
 runID = 1 
 for run in 1:100
+    println("Current RUN is:", runID)
     include("test_generation.jl")
     include("./run.jl")
     runID = runID + 1
