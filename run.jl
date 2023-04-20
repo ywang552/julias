@@ -7,4 +7,4 @@ trialNum = 30
 #     println("------trialNum_", i,"-------")
 #     a[i,:]= ES_cheat()
 # end 
-
+ES_cheat()

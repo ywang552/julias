@@ -545,11 +545,14 @@ function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
     a = map(x->RGB(0,0,0), m)
     for i in eachindex(r)
         if(m[i] == 1 && r[i] == 1)
+            println("zz", evaluate_singleGene(i, data_test, off_test))
+
             a[i]=RGB(0,1,0)
             c1 = c1+1
         end 
         if(m[i] == 1 && r[i] == 0)
             a[i]=RGB(1,0,0)
+            println(evaluate_singleGene(i, data_test, off_test))
             c2 = c2+1
         end 
         if(m[i] == 0 && r[i] == 1 )
@@ -627,6 +630,31 @@ function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     end 
     p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
     pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
+end 
+
+function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
+    inp = pt.dm
+    inp_ = spzeros(window_size_l,window_size_r)
+    data_ = data.-offset
+    for indx in 1:window_size_r
+        msk = inp[:,indx] .== 1
+        msk = CartesianIndices(msk)[msk]
+        msk_ = similar(msk)
+        for i in eachindex(msk)
+            msk_[i] = msk[i] + CartesianIndex(window_size_l*is)
+        end 
+        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size_r*js] 
+        inp_[msk,indx] = reso
+    end 
+    p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
+    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
+end 
+
+function evaluate_singleGene(indx, data, offset)
+    data_ = data.-offset
+    rid, cid = indx[1], indx[2]
+    rs = data_[1:end-1,rid] \ data_[2:end, cid]
+    rmsd(data_[1:end-1,rid]*rs.+offset[cid]', data[2:end, cid])
 end 
 
 
@@ -814,11 +842,13 @@ function crossover_deterministic_(ptr1, ptr2, windl, windr, inheretRate)
 end 
 
 
-function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_, eli_num = eli_num_, restart_num = restart_num_)
+function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_, eli_num = eli_num_, restart_num = restart_num_)
     zone_size = windrow*windcol*PB*0.2
-    # @printf "starting...\n"
-    # @printf "(μ+λ) is (%d + %d) \n" μ  λ 
-    # @printf "the ms is %.2f\n" ms
+    if(verbose)
+        @printf "starting...\n"
+        @printf "(μ+λ) is (%d + %d) \n" μ  λ 
+        @printf "the ms is %.2f\n" ms
+    end 
     rv = true     
     if(seeded)
         parents = seed
@@ -844,7 +874,9 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
     convergence = zeros(epochNum)
     greenDot_Num = zeros(epochNum)
     for currentEpoch in 1:epochNum
-        # @printf "-------current epoch is %d-------\n" currentEpoch
+        if(verbose)
+            @printf "-------current epoch is %d-------\n" currentEpoch
+        end 
         for indx in 1:(λ-eli_num)
             if(rand()<0.95-0.95*currentEpoch/epochNum)
                 a = LRank(μ, p)
@@ -896,34 +928,35 @@ function ES_cheat(; seeded = false, seed = nothing,  is = is_, js = js_, epochNu
         nnz_hist[currentEpoch] = nnz(parents[end].dm)
         
         
-        # pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
+        pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
         # # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
         # performance_[currentEpoch] = pp
         # greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
         
         
         # println(distance.(Ref(parents[end]), parents, zone_size))
-        
-        # @printf "nnz is %d\n" nnz_hist[currentEpoch]  
-        # @printf "best error is: %.4f\n" pp
-        # @printf "best error is: %.4f\n" performance[currentEpoch, end]
-        # if(currentEpoch%10 == 0)
-        #     plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
-        #     # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
-        #     plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
-        #     hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
-        #     plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
-        #     plt4 = plot(plt1, plt2, plt3, layout =(3,1))
-        #     display(plt4)
-        # end 
-        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
-        # display(t)
-        if(currentEpoch%50==0)
-            println(currentEpoch,"...")
+        if(verbose)
+
+            @printf "nnz is %d\n" nnz_hist[currentEpoch]  
+            @printf "best error is: %.4f\n" pp
+            @printf "best error is: %.4f\n" performance[currentEpoch, end]
+            if(currentEpoch%10 == 0)
+                plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
+                # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
+                plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
+                hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
+                plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
+                plt4 = plot(plt1, plt2, plt3, layout =(3,1))
+                display(plt4)
+            end 
+            # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+            # display(t)
         end 
 
         if(convergence[currentEpoch] > 0.8*μ)
-            # println("!!!RESTART!!!")
+            if(verbose)
+                println("!!!RESTART!!!")
+            end 
             msk = sample(1:μ, restart_num, replace = false)
             for i in msk
                 parents[i] = Ind(sprand(Bool, windrow, windcol, PB),0)
