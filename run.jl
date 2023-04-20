@@ -1,9 +1,14 @@
-# ES_sliding(is = is_, js = js_, EpochNum= EpochNum_p, λ = λ_, DATASET = data_test, DIM_ = DIM, PB_ = PB, starting_mutation_strength = sms, windsize_l = window_size_l, windsize_r = window_size_l)
-# a = Array{Ind}(undef, trialNum, μ_)
+## storing resolution 
 
+fp = joinpath(pwd(), "tmp" )
+fn = string(runID) * "_reso"
+fp_ = (joinpath(fp,fn))
+serialize(fp_, r_)
 
-# for i in 1:trialNum
-#     println("------trialNum_", i,"-------")
-#     a[i,:]= ES_cheat()
-# end 
-ES_cheat()
+for triNum in 1:100
+    local fn, fp_
+    a = ES_cheat()
+    fn = string(runID)*"_"*string(triNum)*"_solP"
+    fp_ = (joinpath(fp,fn))
+    serialize(fp_, a)
+end 

@@ -852,7 +852,6 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
     rv = true     
     if(seeded)
         parents = seed
-
     else
         parents = Array{Ind}(undef, μ)
         for i in 1:μ
