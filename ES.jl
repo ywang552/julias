@@ -545,14 +545,16 @@ function plotSol_window(ptr, is, js, windowsize_l, windowsize_r)
     a = map(x->RGB(0,0,0), m)
     for i in eachindex(r)
         if(m[i] == 1 && r[i] == 1)
-            println("zz", evaluate_singleGene(i, data_test, off_test))
+            # println("zz", evaluate_singleGene(i, data_test, off_test))
 
             a[i]=RGB(0,1,0)
             c1 = c1+1
         end 
         if(m[i] == 1 && r[i] == 0)
-            a[i]=RGB(1,0,0)
-            println(evaluate_singleGene(i, data_test, off_test))
+            if(i[1] != i[2])
+                a[i]=RGB(1,0,0)
+            end
+            # println(evaluate_singleGene(i, data_test, off_test))
             c2 = c2+1
         end 
         if(m[i] == 0 && r[i] == 1 )
