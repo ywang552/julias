@@ -1,7 +1,8 @@
 fp = joinpath(pwd(), "tmp")
-hitTime = zeros(10, 100)
-accuracy = zeros(10, 100)
-for runID in 1:10 
+hitTime = zeros(43, 100)
+accuracy = zeros(43, 100)
+for runID in 1:43 
+    println(runID)
     global fp
     local r_, fn
     fn = string(runID)*"_reso"
@@ -33,21 +34,25 @@ for runID in 1:10
         local msk 
         tmpInd = Ind(spzeros(Bool, window_size_l, window_size_r), 0)
         msk = tp1 .== i 
-        hitTime[runID, i] = sum(msk)
+        tpa = sum(msk)
+        hitTime[runID, i] = tpa
         tmpInd.dm[msk] .=1 
         c1,c2 = calSol_window(tmpInd, is_, js_, window_size_l, window_size_r)
         c2d = maximum([1, c2])
         c1d = maximum([1, c1])
-        accuracy[runID, i] = c1
+        accuracy[runID, i] = c1/tpa
     end 
 
 end 
-
-z = 1
-pl1 = plot(1:100, hitTime[z,:], legend = false )
-plot!(1:100, accuracy[z,:], legend = false)
-
-
+zzz = maximum(accuracy, dims = 1)
+plot(1:100, zzz[1:100])
+# for z in 1:43
+#     local pl1
+#     pl1 = plot(1:100, hitTime[z,:], legend = false, title = "run id is " * string(z) )
+#     # plot!(1:100, accuracy[z,:], legend = false)
+#     display(pl1)
+#     sleep(2)
+# end 
 
 
 

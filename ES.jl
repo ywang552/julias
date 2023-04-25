@@ -634,24 +634,6 @@ function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
 end 
 
-function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
-    inp = pt.dm
-    inp_ = spzeros(window_size_l,window_size_r)
-    data_ = data.-offset
-    for indx in 1:window_size_r
-        msk = inp[:,indx] .== 1
-        msk = CartesianIndices(msk)[msk]
-        msk_ = similar(msk)
-        for i in eachindex(msk)
-            msk_[i] = msk[i] + CartesianIndex(window_size_l*is)
-        end 
-        reso = data_[1:end-1, msk_] \ data_[2:end, indx+window_size_r*js] 
-        inp_[msk,indx] = reso
-    end 
-    p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
-    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
-end 
-
 function evaluate_singleGene(indx, data, offset)
     data_ = data.-offset
     rid, cid = indx[1], indx[2]
@@ -973,6 +955,11 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
     # return [performance, performance_, convergence, greenDot_Num] 
     return parents
 end 
+
+
+
+
+
 
 
 
