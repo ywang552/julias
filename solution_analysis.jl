@@ -3,7 +3,7 @@ list = findall(!iszero, r_)
 list = shuffle(list)
 total_trials = 100
 h = Array{Float64}(undef, total_trials, 1000)
-k = 147
+k = 142
 
 for iter in 1:total_trials
     local c 
@@ -38,17 +38,15 @@ av = mean(h,dims = 1)'
 lw = minimum(h, dims = 1)'
 he = maximum(h, dims = 1)'
 z = plot(1:k_+1, av)
-plot(1:k_+1, lw)
+plot!(1:k_+1, lw)
 plot!(1:k_+1, he)
 display(z)
 
-plot(1:k_+1, h[1,:])
+plot(1:k_+1, h[4,:])
 
-plot(1:total_trials, h[:,end])
-hline!([0 ])
+# plot(1:total_trials, h[:,end])
+# hline!([0 ])
 
-
-0 == h[1,end] 
 
 
 

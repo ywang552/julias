@@ -1,9 +1,10 @@
 include("./dependancies.jl")
 include("./parameters.jl")
 include("./ES.jl")
-# include("./test_generation.jl")
-include("./solution_analysis.jl")
-include("./result_analysis.jl")
+include("./test_generation.jl")
+# include("./solution_analysis.jl")
+# include("./result_analysis.jl")
+# include("./run.jl")
 
 # runID = 1 
 # for run in 1:100
