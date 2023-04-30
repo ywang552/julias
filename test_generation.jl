@@ -26,3 +26,5 @@ if(verbose_)
     # sleep(2)
     @printf "reso size: %d\n" nnz(reso)
 end 
+
+RGB.(r_)

@@ -832,6 +832,7 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         @printf "starting...\n"
         @printf "(μ+λ) is (%d + %d) \n" μ  λ 
         @printf "the ms is %.2f\n" ms
+        @printf "seed is %s\n" seeded
     end 
     rv = true     
     if(seeded)
@@ -855,9 +856,9 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
     performance = zeros(epochNum, μ)
     performance_ = zeros(epochNum)
     convergence = zeros(epochNum)
-    greenDot_Num = zeros(epochNum)
+    greenDot_Num = zeros(Int, 2,epochNum)
     for currentEpoch in 1:epochNum
-        if(verbose)
+        if(verbose_)
             @printf "-------current epoch is %d-------\n" currentEpoch
         end 
         for indx in 1:(λ-eli_num)
@@ -911,27 +912,64 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         nnz_hist[currentEpoch] = nnz(parents[end].dm)
         
         
-        pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
+        # pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
         # # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
         # performance_[currentEpoch] = pp
-        # greenDot_Num[currentEpoch] = green_window(parents[end], is, js, windrow, windcol)
+        tmx = green_window.(parents, is, js, windrow, windcol)
+        greenDot_Num[1,currentEpoch] = maximum(tmx)
+        greenDot_Num[2,currentEpoch] =  green_window(parents[end], is, js, windrow, windcol)
         
+
+        # println(greenDot_Num[1,currentEpoch])
+        # println(nnz(parents[end].dm))
+        # if(greenDot_Num[1,currentEpoch]>=nnz(parents[end].dm))
+        #     println("!!!!!!!!!!!")
+
+            
+        #     println(greenDot_Num[1,currentEpoch])
+        #     println(nnz(parents[end].dm))
+        #     return parents
+        # end 
+
+
+        p1 = zeros(μ)
+        p2 = zeros(μ)
+        for i in 1:μ
+            p1[i] = evaluate_sw(parents[i], data_test, off_test, is_,js_,window_size_l, window_size_r)
+            p2[i] = green_window(parents[i], is_, js_, window_size_l, window_size_r)
+        end 
+        maxval = maximum(p2)
         
+        pos = [i for (i, x) in enumerate(p2) if x == maxval]
+        
+        plt1 = plot(1:μ, p1, label = false, title = "current Epoch "*string(currentEpoch))
+        scatter!([pos], [p1[pos]], label = false)#, ylim = [0, 1])
+        plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
+        # hline!([397], label = false )
+        scatter!([pos], [p2[pos]], label = false, markersize = 3)
+        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
+        display(plot(plt1, plt2, layout=(2,1)))
+
+        # display(t)
+
         # println(distance.(Ref(parents[end]), parents, zone_size))
-        if(verbose)
+        if(true)
 
             @printf "nnz is %d\n" nnz_hist[currentEpoch]  
-            @printf "best error is: %.4f\n" pp
+            # @printf "best error is: %.4f\n" pp
             @printf "best error is: %.4f\n" performance[currentEpoch, end]
-            if(currentEpoch%10 == 0)
-                plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
-                # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
-                plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
-                hline!([0.8*μ 0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
-                plt3 = plot(1:currentEpoch, greenDot_Num[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
-                plt4 = plot(plt1, plt2, plt3, layout =(3,1))
-                display(plt4)
-            end 
+            # if(currentEpoch%10 == 0)
+            #     plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
+            #     # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
+            #     plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
+            #     hline!([0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
+            #     plt3 = plot(1:currentEpoch, greenDot_Num[1,1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
+            #     plot!(1:currentEpoch, greenDot_Num[2,1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
+            #     hline!([nnz(parents[end].dm)], label = false)
+            #     plt4 = plot(plt1, plt2, plt3, layout =(3,1))
+            #     display(plt4)
+            # end 
+
             # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
             # display(t)
         end 
