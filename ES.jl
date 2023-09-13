@@ -899,20 +899,19 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         greenDot_Num[1,currentEpoch] = maximum(tmx)
         greenDot_Num[2,currentEpoch] =  green_window(parents[end], is, js, windrow, windcol)
     
-        p1 = zeros(μ)
         p2 = zeros(μ)
         for i in 1:μ
-            p1[i] = evaluate_sw(parents[i], data_test, off_test, is_,js_,window_size_l, window_size_r)
             p2[i] = green_window(parents[i], is_, js_, window_size_l, window_size_r)
         end 
         maxval = maximum(p2)
         
         pos = [i for (i, x) in enumerate(p2) if x == maxval]
         
-        plt1 = plot(1:μ, p1, label = false, title = "current Epoch "*string(currentEpoch))
-        scatter!([pos], [p1[pos]], label = false)#, ylim = [0, 1])
+        plt1 = plot(1:μ, tmp, label = false, title = "current Epoch "*string(currentEpoch))
+        scatter!([pos], [tmp[pos]], label = false)#, ylim = [0, 1])
         plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
         scatter!([pos], [p2[pos]], label = false, markersize = 3)
+        hline!([maxval maxval], label = false)
         display(plot(plt1, plt2, layout=(2,1)))
 
 

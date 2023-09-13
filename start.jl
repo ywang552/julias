@@ -1,8 +1,8 @@
-include("./dependancies.jl")
-include("./parameters.jl")
+# include("./dependancies.jl")
+# include("./parameters.jl")
 include("./ES.jl")
-include("./test_generation.jl")
-# include("./run.jl")
+# include("./test_generation.jl")
+include("./run.jl")
 # include("./solution_analysis.jl")
 # include("./result_analysis.jl")
 
