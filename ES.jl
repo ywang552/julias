@@ -843,11 +843,9 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             parents[i] = Ind(sprand(Bool, windrow, windcol, PB), 0 )
             parents[i].dm[diagind(parents[i].dm)] .=0
             dropzeros!(parents[i].dm)
-            # evaluate_cheat(parents[i], is, js, windrow, windcol)
             evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
         end
     end  
-        
     sort!(parents, rev = rv)
 
     children = Array{Ind}(undef, λ)
@@ -874,12 +872,6 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             else
                 children[indx] = parents[LRank(μ, p)]
             end
-        
-            # children[indx] = crossover_withMutation(parents[LRank(μ, p)], parents[LRank(μ, p)], windrow, windcol, 1)
-            # children[indx] = parents[LRank(μ, p)]
-            # children[indx] = fastmut(parents[LRank(μ, p)], ms)
-            # evaluate_cheat(children[indx], is, js, windrow, windcol)
-            # evaluate_sw(children[indx], DATASET, off_test, is, js, windrow, windcol)
         end 
 
         for indx in 1:(λ-eli_num)
@@ -888,19 +880,10 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             end
         end
         children[end-eli_num+1:end] = parents[end-eli_num+1:end]
-        # children[end-eli_num+1:end] = parents[1:eli_num]
-        # total_population = vcat(parents, children)
         for i in 1:λ
-            # t = sum(distance.(Ref(children[i]), children, zone_size))
-            # t = logistic(t) + 0.5
 
-            # evaluate_cheat(children[i], is, js, windrow, windcol)
             evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
 
-            # if(t != 1 && i == (λ))
-            #     println(t)
-            # end 
-            # children[i].error = children[i].error*t
         end 
         sort!(children, rev = rv)
         parents = children[end-μ+1:end]
@@ -911,27 +894,11 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         performance[currentEpoch, :] = tmp
         nnz_hist[currentEpoch] = nnz(parents[end].dm)
         
-        
-        # pp = evaluate_cheat_print(parents[end], is, js, windrow, windcol)
-        # # pp = evaluate_sw_printf(parents[end], DATASET, off_test, is, js, windrow, windcol)
-        # performance_[currentEpoch] = pp
+
         tmx = green_window.(parents, is, js, windrow, windcol)
         greenDot_Num[1,currentEpoch] = maximum(tmx)
         greenDot_Num[2,currentEpoch] =  green_window(parents[end], is, js, windrow, windcol)
-        
-
-        # println(greenDot_Num[1,currentEpoch])
-        # println(nnz(parents[end].dm))
-        # if(greenDot_Num[1,currentEpoch]>=nnz(parents[end].dm))
-        #     println("!!!!!!!!!!!")
-
-            
-        #     println(greenDot_Num[1,currentEpoch])
-        #     println(nnz(parents[end].dm))
-        #     return parents
-        # end 
-
-
+    
         p1 = zeros(μ)
         p2 = zeros(μ)
         for i in 1:μ
@@ -945,33 +912,13 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         plt1 = plot(1:μ, p1, label = false, title = "current Epoch "*string(currentEpoch))
         scatter!([pos], [p1[pos]], label = false)#, ylim = [0, 1])
         plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
-        # hline!([397], label = false )
         scatter!([pos], [p2[pos]], label = false, markersize = 3)
-        # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
         display(plot(plt1, plt2, layout=(2,1)))
 
-        # display(t)
 
-        # println(distance.(Ref(parents[end]), parents, zone_size))
         if(true)
-
             @printf "nnz is %d\n" nnz_hist[currentEpoch]  
-            # @printf "best error is: %.4f\n" pp
             @printf "best error is: %.4f\n" performance[currentEpoch, end]
-            # if(currentEpoch%10 == 0)
-            #     plt1 = plot(1:currentEpoch, performance[1:currentEpoch, end], xaxis =:log, yaxis = :log, label = false, xlabel = "epochs", ylabel = "error")
-            #     # plot!(1:currentEpoch, performance_[1:currentEpoch], xaxis =:log, yaxis =:log, label = false, xlabel = "epochs", ylabel = "error")
-            #     plt2 = plot(1:currentEpoch, convergence[1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "convergence") 
-            #     hline!([0.8*μ], label = false, xlabel = "epochs", ylabel = "convergence")
-            #     plt3 = plot(1:currentEpoch, greenDot_Num[1,1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
-            #     plot!(1:currentEpoch, greenDot_Num[2,1:currentEpoch], xaxis =:log, label = false, xlabel = "epochs", ylabel = "green dots")
-            #     hline!([nnz(parents[end].dm)], label = false)
-            #     plt4 = plot(plt1, plt2, plt3, layout =(3,1))
-            #     display(plt4)
-            # end 
-
-            # t = plot(plotSol_window(parents[end], is, js, windrow, windcol), title = "epoch number "*string(currentEpoch))
-            # display(t)
         end 
 
         if(convergence[currentEpoch] > 0.8*μ)
@@ -981,7 +928,6 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             msk = sample(1:μ, restart_num, replace = false)
             for i in msk
                 parents[i] = Ind(sprand(Bool, windrow, windcol, PB),0)
-                # evaluate_cheat(parents[i], is, js, windrow, windcol)
                 evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
             end 
         end 
@@ -990,7 +936,6 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
 
     end 
 
-    # return [performance, performance_, convergence, greenDot_Num] 
     return parents
 end 
 

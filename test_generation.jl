@@ -23,7 +23,7 @@ if(verbose_)
     pl = plot(1:vc, data_test[1:vc, 1:10], legend = false)
 
     display(pl)
-    # sleep(2)
+    sleep(2)
     @printf "reso size: %d\n" nnz(reso)
 end 
 
