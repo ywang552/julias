@@ -849,11 +849,10 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
     sort!(parents, rev = rv)
 
     children = Array{Ind}(undef, λ)
-    nnz_hist = zeros(epochNum)
+    nnz_hist = zeros(epochNum) # number of nonzero elements for best individual in each epoch
 
-    performance = zeros(epochNum, μ)
-    performance_ = zeros(epochNum)
-    convergence = zeros(epochNum)
+    performance = zeros(epochNum, μ) # fitness of parents in each epoch 
+    convergence = zeros(epochNum) # how similar are individuals compared to the best individual in the parents  
     greenDot_Num = zeros(Int, 2,epochNum)
     for currentEpoch in 1:epochNum
         if(verbose_)
@@ -881,9 +880,7 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         end
         children[end-eli_num+1:end] = parents[end-eli_num+1:end]
         for i in 1:λ
-
             evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
-
         end 
         sort!(children, rev = rv)
         parents = children[end-μ+1:end]
@@ -906,17 +903,22 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
         maxval = maximum(p2)
         
         pos = [i for (i, x) in enumerate(p2) if x == maxval]
-        
+        nnz.(map(x->x.dm, parents))        
         plt1 = plot(1:μ, tmp, label = false, title = "current Epoch "*string(currentEpoch))
         scatter!([pos], [tmp[pos]], label = false)#, ylim = [0, 1])
         plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
+        plot!(1:μ,  nnz.(map(x->x.dm, parents)) , label = false, title = "current Epoch "*string(currentEpoch))
         scatter!([pos], [p2[pos]], label = false, markersize = 3)
         hline!([maxval maxval], label = false)
+        hline!([nnz_hist[currentEpoch] nnz_hist[currentEpoch]], label = false)
+        hline!([nnz(r_) nnz(r_)], label = false)
+        
         display(plot(plt1, plt2, layout=(2,1)))
 
 
         if(true)
             @printf "nnz is %d\n" nnz_hist[currentEpoch]  
+            @printf "nnz_maxs is %d\n" maxval  
             @printf "best error is: %.4f\n" performance[currentEpoch, end]
         end 
 
@@ -944,7 +946,6 @@ end
 
 
 
-
 p1 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
 p2 = Ind(sprand(Bool, window_size_l, window_size_r, PB),0)
 
@@ -957,7 +958,11 @@ function roulette_wheel_secltion(population)
     sample(population, Weights(chromosome_probabilities), 2, replace = false)
 end 
 
-
+is_
+js_
+window_size_l
+window_size_r
+r_
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
 
