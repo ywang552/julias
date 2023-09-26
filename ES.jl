@@ -616,6 +616,7 @@ function green_window(ptr, is, js, windowsize_l, windowsize_r)
 end 
 
 
+logistic_square(x) = logistic(sqrt(x^2))*2
 function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     inp = pt.dm
     inp_ = spzeros(window_size_l,window_size_r)
@@ -631,7 +632,8 @@ function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
         inp_[msk,indx] = reso
     end 
     p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
-    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p)
+    v = (nnz(inp) - nnz(r_))/nnz(r_)
+    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p) * logistic_square(v) 
 end 
 
 function evaluate_singleGene(indx, data, offset)
@@ -901,27 +903,25 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             p2[i] = green_window(parents[i], is_, js_, window_size_l, window_size_r)
         end 
         maxval = maximum(p2)
-        
-        pos = [i for (i, x) in enumerate(p2) if x == maxval]
-        nnz.(map(x->x.dm, parents))        
-        plt1 = plot(1:μ, tmp, label = false, title = "current Epoch "*string(currentEpoch))
-        scatter!([pos], [tmp[pos]], label = false)#, ylim = [0, 1])
-        plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
-        plot!(1:μ,  nnz.(map(x->x.dm, parents)) , label = false, title = "current Epoch "*string(currentEpoch))
-        scatter!([pos], [p2[pos]], label = false, markersize = 3)
-        hline!([maxval maxval], label = false)
-        hline!([nnz_hist[currentEpoch] nnz_hist[currentEpoch]], label = false)
-        hline!([nnz(r_) nnz(r_)], label = false)
-        
-        display(plot(plt1, plt2, layout=(2,1)))
-
-
+        if (currentEpoch % 50 == 0)
+            pos = [i for (i, x) in enumerate(p2) if x == maxval]
+            nnz.(map(x->x.dm, parents))        
+            plt1 = plot(1:μ, tmp, label = false, title = "current Epoch "*string(currentEpoch))
+            scatter!([pos], [tmp[pos]], label = false)#, ylim = [0, 1])
+            plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
+            plot!(1:μ,  nnz.(map(x->x.dm, parents)) , label = false, title = "current Epoch "*string(currentEpoch))
+            scatter!([pos], [p2[pos]], label = false, markersize = 3)
+            hline!([maxval maxval], label = false)
+            hline!([nnz_hist[currentEpoch] nnz_hist[currentEpoch]], label = false)
+            hline!([nnz(r_) nnz(r_)], label = false)
+            plt3 = plot(1:currentEpoch, performance[1:currentEpoch, end], label = false, xscale =:log)
+            display(plot(plt1, plt2, plt3, layout=(3,1)))
+        end 
         if(true)
             @printf "nnz is %d\n" nnz_hist[currentEpoch]  
-            @printf "nnz_maxs is %d\n" maxval  
+            @printf "number of green dots is %d\n" maxval  
             @printf "best error is: %.4f\n" performance[currentEpoch, end]
         end 
-
         if(convergence[currentEpoch] > 0.8*μ)
             if(verbose)
                 println("!!!RESTART!!!")
@@ -932,9 +932,6 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
                 evaluate_sw(parents[i], DATASET, off_test, is, js, windrow, windcol)
             end 
         end 
-
-
-
     end 
 
     return parents
@@ -962,9 +959,10 @@ is_
 js_
 window_size_l
 window_size_r
-r_
+# r_
 DATASET_ = r3
 r3_mod = DATASET_[1:TIMING, 1:DIM]
+
 
 
 

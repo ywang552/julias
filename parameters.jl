@@ -1,6 +1,6 @@
 DIM = 32
 TIMING = 37
-EpochNum_p = 150
+EpochNum_p = 500
 PB = 0.095*4
 PB_ = PB
 

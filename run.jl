@@ -4,9 +4,8 @@
 # fn = string(runID) * "_reso"
 # fp_ = (joinpath(fp,fn))
 # serialize(fp_, r_)
-r_
-EpochNum_p = 150
-x = ES_cheat(PB =  0.05)
+
+x = ES_cheat(PB =  0.38)
 
 
 # x2 = x
