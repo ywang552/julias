@@ -526,12 +526,14 @@ function plotSol(ptr)
             c3 = c3+1
         end 
     end 
-    t1 = "c1:" *string(c1)
-    t2 = "c2:" *string(c2)
-    t3 = "c3:" *string(c3)
-    res = plot(a, axis = nothing, annotations = (DIM, 0, Plots.text(t1, :left)))
-    annotate!(DIM, 40, Plots.text(t2, :left))
-    annotate!(DIM, 80, Plots.text(t3, :left))
+    # t1 = "c1:" *string(c1)
+    # t2 = "c2:" *string(c2)
+    # t3 = "c3:" *string(c3)
+    res = plot(a, axis = nothing)
+
+    # res = plot(a, axis = nothing, annotations = (DIM, 0, Plots.text(t1, :left)))
+    # annotate!(DIM, 40, Plots.text(t2, :left))
+    # annotate!(DIM, 80, Plots.text(t3, :left))
     return res
 end 
 
@@ -633,7 +635,17 @@ function evaluate_sw(pt, data, offset, is, js, window_size_l, window_size_r)
     end 
     p = (data_[1:end-1, 1+window_size_l*is : window_size_l*(is+1)])*inp_ .+offset[1+window_size_r*js:window_size_r*(js+1)]'
     v = (nnz(inp) - nnz(r_))/nnz(r_)
-    pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p) * logistic_square(v) 
+    x1 = data[2:end,1+window_size_r*js:window_size_r*(js+1)]
+    x2 = p
+    e1 = 0
+    for i in 1:size(inp,1)
+        e1 = e1 + abs(12-sum(inp[:,i]))
+    end 
+    
+    # ds = Dataset(inp, :auto)
+    # pt.error = sum(x -> abs(x[1] - x[2]), zip(x1, x2))+sum(abs.(byrow(ds,sum).-13))
+    pt.error = sum(x -> abs(x[1] - x[2]), zip(x1, x2))
+    # pt.error = rmsd(data[2:end,1+window_size_r*js:window_size_r*(js+1)], p) * logistic_square(v) 
 end 
 
 function evaluate_singleGene(indx, data, offset)
@@ -827,6 +839,11 @@ function crossover_deterministic_(ptr1, ptr2, windl, windr, inheretRate)
     return Ind(r,0)
 end 
 
+function column_modific()
+
+
+end 
+
 
 function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is_, js = js_, epochNum = EpochNum_p, μ = μ_, λ = λ_, DATASET = data_test, PB = PB_, windrow = window_size_l, windcol = window_size_r, p = p_, ms = ms_, inheretRate = inheretRate_, eli_num = eli_num_, restart_num = restart_num_)
     zone_size = windrow*windcol*PB*0.2
@@ -856,37 +873,54 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
     performance = zeros(epochNum, μ) # fitness of parents in each epoch 
     convergence = zeros(epochNum) # how similar are individuals compared to the best individual in the parents  
     greenDot_Num = zeros(Int, 2,epochNum)
+        
     for currentEpoch in 1:epochNum
         if(verbose_)
             @printf "-------current epoch is %d-------\n" currentEpoch
         end 
-        for indx in 1:(λ-eli_num)
-            if(rand()<0.95-0.95*currentEpoch/epochNum)
-                a = LRank(μ, p)
-                b = LRank(μ, p)
-                while(a==b)
+        if(currentEpoch <= 30)
+            for indx in 1:(λ-eli_num)
+                if(rand()<0.95-0.95*currentEpoch/epochNum)
+                    a = LRank(μ, p)
                     b = LRank(μ, p)
-                end 
+                    while(a==b)
+                        b = LRank(μ, p)
+                    end 
 
-                children[indx] = crossover_deterministic(parents[a], parents[b], windrow, windcol, 1)
+                    children[indx] = crossover_deterministic(parents[a], parents[b], windrow, windcol, 1)
 
-            else
-                children[indx] = parents[LRank(μ, p)]
-            end
-        end 
+                else
+                    children[indx] = parents[LRank(μ, p)]
+                end
+            end 
+        else
 
-        for indx in 1:(λ-eli_num)
-            if(rand() < 0.001+0.999*currentEpoch/epochNum)
-                children[indx] = mutate_flip(children[indx])
-            end
-        end
+            for indx in 1:(λ-eli_num)
+                if(rand() < 0.001+0.999*currentEpoch/epochNum)
+                    children[indx] = mutate_flip(children[indx])
+                end
+            end 
+        end     
+        
+
+
         children[end-eli_num+1:end] = parents[end-eli_num+1:end]
         for i in 1:λ
             evaluate_sw(children[i], DATASET, off_test, is, js, windrow, windcol)
         end 
         sort!(children, rev = rv)
-        parents = children[end-μ+1:end]
+
+        t1 = rand(1:500,50)
+        t2 = rand(501:1000, 50)
+        # t3 = λ-μ+1+150:λ
+        t3 = rand(1001:1980,90)
+        t5 = rand(1981:2000, 10)
+
         
+        t4 = vcat(t1,t2,t3,t5)
+
+
+        parents = children[t4]
         
         convergence[currentEpoch] = sum(distance.(Ref(parents[end]), parents, zone_size))
         tmp = map(x->x.error, parents)
@@ -903,19 +937,21 @@ function ES_cheat(; verbose = verbose_, seeded = false, seed = nothing,  is = is
             p2[i] = green_window(parents[i], is_, js_, window_size_l, window_size_r)
         end 
         maxval = maximum(p2)
-        if (currentEpoch % 50 == 0)
+        if (currentEpoch % 1 == 0)
             pos = [i for (i, x) in enumerate(p2) if x == maxval]
             nnz.(map(x->x.dm, parents))        
             plt1 = plot(1:μ, tmp, label = false, title = "current Epoch "*string(currentEpoch))
             scatter!([pos], [tmp[pos]], label = false)#, ylim = [0, 1])
             plt2 = plot(1:μ, p2, label = false, title = "current Epoch "*string(currentEpoch))
-            plot!(1:μ,  nnz.(map(x->x.dm, parents)) , label = false, title = "current Epoch "*string(currentEpoch))
+            # plot!(1:μ,  nnz.(map(x->x.dm, parents)) , label = false, title = "current Epoch "*string(currentEpoch))
             scatter!([pos], [p2[pos]], label = false, markersize = 3)
-            hline!([maxval maxval], label = false)
-            hline!([nnz_hist[currentEpoch] nnz_hist[currentEpoch]], label = false)
-            hline!([nnz(r_) nnz(r_)], label = false)
-            plt3 = plot(1:currentEpoch, performance[1:currentEpoch, end], label = false, xscale =:log)
-            display(plot(plt1, plt2, plt3, layout=(3,1)))
+            # hline!([maxval maxval], label = false)
+            # hline!([nnz_hist[currentEpoch] nnz_hist[currentEpoch]], label = false)
+            # hline!([nnz(r_) nnz(r_)], label = false)
+            plt3 = plot(1:currentEpoch, performance[1:currentEpoch, end], label = false, xscale =:log10)
+            plt4 = plot(1:currentEpoch, greenDot_Num[1,1:currentEpoch], label = false, xscale =:log10)
+            display(plot(plt1, plt2, plt3, plt4, layout=(4,1)))
+            # display(plot(plt3))
         end 
         if(true)
             @printf "nnz is %d\n" nnz_hist[currentEpoch]  

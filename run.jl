@@ -5,8 +5,7 @@
 # fp_ = (joinpath(fp,fn))
 # serialize(fp_, r_)
 
-x = ES_cheat(PB =  0.38)
-
+pp = ES_cheat(seeded = true, seed = ps, PB =  0.38)
 
 # x2 = x
 # maximum(nnz.([z.dm for z in x]))

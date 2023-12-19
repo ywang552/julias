@@ -11,4 +11,7 @@ using Random
 using Serialization
 using Colors
 using Dates
+using Convex, SCS
+using LinearAlgebra
+using InMemoryDatasets
 println("modules finished loading")

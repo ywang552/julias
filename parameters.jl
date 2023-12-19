@@ -1,14 +1,15 @@
 DIM = 32
 TIMING = 37
-EpochNum_p = 500
-PB = 0.095*4
+EpochNum_p = 200
+PB = 0.095*4 #0.38
+PB = 0.1
 PB_ = PB
 
-μ_ = 400
-γ_p = 200
+μ_ = 200
+γ_p = 1000
 λ_ = Int(γ_p*2)
-eli_num_ = 80
-restart_num_ = 320
+eli_num_ = 20
+restart_num_ = μ_ - eli_num_
 
 sms=0.1
 window_size_l = 32
